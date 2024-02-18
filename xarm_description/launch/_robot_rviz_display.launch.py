@@ -80,7 +80,13 @@ def generate_launch_description():
         PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/_rviz_display.launch.py']),
     )
     
+    joint_state_publisher_gui = Node(
+        package = "joint_state_publisher_gui",
+        executable = "joint_state_publisher_gui",
+        output = "screen"
+    )
     return LaunchDescription([
         robot_joint_state_launch,
+        joint_state_publisher_gui,
         rviz2_launch
     ])

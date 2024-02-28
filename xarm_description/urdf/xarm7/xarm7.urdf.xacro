@@ -197,19 +197,19 @@
     <link name="${prefix}link6">
       <xacro:common_link_inertial 
         link_inertial_params="${inertial_params['link6']}" 
-        origin_rpy="0 0 0"/>
+        origin_rpy="0 0 -1.5708"/>
       <xacro:common_link_visual 
         mesh_filename="xarm7/visual/link6"  
         origin_xyz="0 0 0" 
-        origin_rpy="0 0 0"
+        origin_rpy="0 0 -1.5708"
         material_name="${prefix}White" />
       <xacro:common_link_collision 
         mesh_filename="xarm7/visual/link6"  
         origin_xyz="0 0 0" 
-        origin_rpy="0 0 0" />
+        origin_rpy="0 0 -1.5708" />
     </link>
     <joint name="${prefix}joint6" type="revolute">
-      <!-- <origin xyz="0 0 0" rpy="1.5708 0 0" /> -->
+      <origin xyz="0 0 0" rpy="1.5708 0 0" />
       <xacro:common_joint_origin joint_kinematic_params="${kinematics_params['joint6']}" />
       <parent link="${prefix}link5" />
       <child link="${prefix}link6" />
@@ -224,7 +224,7 @@
     <link name="${prefix}link7">
       <xacro:common_link_inertial 
         link_inertial_params="${inertial_params['link7']}" 
-        origin_rpy="0 0 0"/>
+        origin_rpy="0 0 0" />
       <xacro:common_link_visual 
         mesh_filename="${end_tool_visual_filename}"  
         origin_xyz="0 0 0" 
@@ -236,7 +236,7 @@
         origin_rpy="0 0 0" />
     </link>
     <joint name="${prefix}joint7" type="revolute">
-      <!-- <origin xyz="0.076 0.097 0" rpy="-1.5708 0 0" /> -->
+      <origin xyz="0.097 -0.076 0" rpy="1.5708 0 1.5708" />
       <xacro:common_joint_origin joint_kinematic_params="${kinematics_params['joint7']}" />
       <parent link="${prefix}link6" />
       <child link="${prefix}link7" />

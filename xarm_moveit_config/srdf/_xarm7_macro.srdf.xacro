@@ -42,7 +42,7 @@
       <joint name="${prefix}joint3" value="0.0" />
       <joint name="${prefix}joint4" value="0.0" />
       <joint name="${prefix}joint5" value="0.0" />
-      <joint name="${prefix}joint6" value="-1.5708" />
+      <joint name="${prefix}joint6" value="0.0" />
       <joint name="${prefix}joint7" value="0.0" />
     </group_state>
 
@@ -52,7 +52,7 @@
       <joint name="${prefix}joint3" value="0.0" />
       <joint name="${prefix}joint4" value="0.0" />
       <joint name="${prefix}joint5" value="0.0" />
-      <joint name="${prefix}joint6" value="-1.5708" />
+      <joint name="${prefix}joint6" value="0.0" />
       <joint name="${prefix}joint7" value="0.0" />
     </group_state>
 
@@ -62,7 +62,7 @@
       <joint name="${prefix}joint3" value="-1.57080" />
       <joint name="${prefix}joint4" value="0.0" />
       <joint name="${prefix}joint5" value="0.0" />
-      <joint name="${prefix}joint6" value="-1.5708" />
+      <joint name="${prefix}joint6" value="0.0" />
       <joint name="${prefix}joint7" value="0.0" />
     </group_state>
 
@@ -72,7 +72,7 @@
       <joint name="${prefix}joint3" value="0.0" />
       <joint name="${prefix}joint4" value="0.0" />
       <joint name="${prefix}joint5" value="-1.5708" />
-      <joint name="${prefix}joint6" value="-1.5708" />
+      <joint name="${prefix}joint6" value="0.0" />
       <joint name="${prefix}joint7" value="0.0" />
     </group_state>
 

@@ -20,7 +20,7 @@ class JointStatesSubscriberNode(Node):
         )
         self.joint_states_subscription  # prevent unused variable warning
         self.joint_info_publisher = self.create_publisher(JointNamesAndAngles, '/joint_info', 10)
-        self.timer_period = 1/60
+        self.timer_period = 0.5
         self.timer = self.create_timer(self.timer_period, self.publisher_callback)
 
     def joint_states_callback(self, msg):

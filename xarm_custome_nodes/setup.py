@@ -20,7 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "joint_states_subscriber_node = xarm_custome_nodes.joint_states_subscriber_node:main"
+            "joint_states_subscriber_node = xarm_custome_nodes.joint_states_subscriber_node:main",
+            "unity_to_ros2_publisher_node = xarm_custome_nodes.unity_to_ros2_publisher_test_node:main",
+            "unity_subscriber_node = xarm_custome_nodes.unity_subscriber:main"
         ],
     },
 )

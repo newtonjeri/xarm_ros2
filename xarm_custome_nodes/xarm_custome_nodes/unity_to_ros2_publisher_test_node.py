@@ -11,7 +11,7 @@ class UnityToRos2PublisherTestNode(Node):
         super().__init__(name)
         
         self.joint_names = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"]
-        self.joint_positions: JointNamesAndAngles.positions = [PI, 0.0, 0.0, PI/2, 0.0, 0.0, 0.0]
+        self.joint_positions: JointNamesAndAngles.positions = [PI, 0.0, 0.0, 0.0, 0.0, 0.0, PI/2]
 
         # Publish topic
         self.publish_topic = "/unity_to_ros2_joint_info"

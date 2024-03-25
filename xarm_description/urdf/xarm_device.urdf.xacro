@@ -5,7 +5,7 @@
   <xacro:arg name="limited" default="false"/>
   <xacro:arg name="effort_control" default="false"/>
   <xacro:arg name="velocity_control" default="false"/>
-  <xacro:arg name="add_gripper" default="false"/>
+  <xacro:arg name="add_gripper" default="true"/>
   <xacro:arg name="add_vacuum_gripper" default="false"/>
   <xacro:arg name="model1300" default="false"/>
   
@@ -34,7 +34,7 @@
   <xacro:arg name="geometry_mesh_origin_rpy" default="0 0 0"/>
   <xacro:arg name="geometry_mesh_tcp_xyz" default="0 0 0"/>
   <xacro:arg name="geometry_mesh_tcp_rpy" default="0 0 0"/>
-
+  
   <xacro:arg name="baud_checkset" default="true"/>
   <xacro:arg name="default_gripper_baud" default="2000000"/>
   

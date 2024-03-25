@@ -45,6 +45,8 @@ set(msg_files
 
 set(srv_dir "srv")
 set(srv_files
+  ${srv_dir}/JointsPosition.srv
+  ${srv_dir}/GripperPose.srv
   ${srv_dir}/BioGripperCtrl.srv
   ${srv_dir}/BioGripperEnable.srv
   ${srv_dir}/Call.srv

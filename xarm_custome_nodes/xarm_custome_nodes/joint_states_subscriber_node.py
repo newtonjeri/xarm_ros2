@@ -12,6 +12,7 @@ class JointStatesSubscriberNode(Node):
 
         self.joint_names = []
         self.joint_positions = []
+        self.joint_velocities = []
         self.joint_states_subscription = self.create_subscription(
             JointState,
             '/joint_states',
@@ -27,6 +28,7 @@ class JointStatesSubscriberNode(Node):
         # Extract joint names and positions from JointState message
         self.joint_names = msg.name
         self.joint_positions = msg.position
+        self.joint_velocities = msg.velocity
         self.joint_positions = np.array(self.joint_positions)
 
         # Convert angles into degrees
@@ -39,9 +41,10 @@ class JointStatesSubscriberNode(Node):
         joint_info_msg = JointNamesAndAngles()
         joint_info_msg.names = self.joint_names
         joint_info_msg.positions = self.joint_positions
+        joint_info_msg.velocities = self.joint_velocities
 
         # Set the timestamp in the header
-        joint_info_msg.header.stamp = self.get_clock().now().to_msg()
+        # joint_info_msg.header.stamp = self.get_clock().now().to_msg()
 
         # Publish joint names and positions to another topic
         self.joint_info_publisher.publish(joint_info_msg)

@@ -40,10 +40,22 @@ ament_target_dependencies(
   "xarm_msgs"
 )
 
+add_executable(move_to_A_B_C_points src/move_to_A_B_C_points.cpp)
+ament_target_dependencies(
+  move_to_A_B_C_points
+  "moveit_ros_planning_interface"
+  "moveit_visual_tools"
+  "rclcpp"
+  "std_msgs"
+  "geometry_msgs"
+  "moveit_msgs"
+)
+
 install(
   TARGETS 
     goal_pose_planner_and_executor
     joints_position_planner_and_executor
+    move_to_A_B_C_points
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

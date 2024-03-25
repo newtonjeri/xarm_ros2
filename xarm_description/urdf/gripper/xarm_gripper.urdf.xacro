@@ -185,7 +185,22 @@
       <mimic joint="${prefix}drive_joint" multiplier="1" offset="0" />
     </joint>
 
-    <link name="${prefix}link_tcp" />
+    <link name="${prefix}link_tcp">
+      <visual>
+        <origin xyz = "0 0 0" rpy = "0 0 0"/>
+        <material name="blue"/>
+        <geometry>
+          <sphere radius = "0.01"/>
+        </geometry>
+      </visual>
+
+      <collision>
+        <origin xyz = "0 0 0" rpy = "0 0 0"/>
+        <geometry>
+          <sphere radius = "0.01"/>
+        </geometry>
+      </collision>
+    </link>
 
     <joint name="${prefix}joint_tcp" type="fixed">
       <origin xyz="0 0 0.172" rpy="0 0 0" />

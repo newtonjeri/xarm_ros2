@@ -14,7 +14,10 @@ class JointStatesSubscriberNode(Node):
         super().__init__('joint_states_subscriber_node')
 
         # Start time of the execution
-        self.start_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f %p")
+        self.start_time = ''
+
+        # Create boolean trigger to start saving data
+        self.trigger = True
                 
         # Create the execution directory if it doesn't exist
         self.execution_dir = 'data'
@@ -52,6 +55,7 @@ class JointStatesSubscriberNode(Node):
 
 
     def publisher_callback(self):
+
         # Create a JointNamesAndAngles message to publish joint names and positions
         joint_info_msg = JointNamesAndAngles()
         joint_info_msg.names = self.joint_names
@@ -60,13 +64,16 @@ class JointStatesSubscriberNode(Node):
 
         # Publish joint names and positions to another topic
         self.joint_info_publisher.publish(joint_info_msg)
+
+        if self.trigger == True:
+            self.start_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f %p")
+            self.trigger = False
         # Time data is sent
         self.time_data_sent = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f %p")
         self.save_to_csv(joint_info_msg.names, joint_info_msg.positions, \
                          joint_info_msg.velocities, datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f %p"),\
-                        datetime.strptime(self.time_data_sent, "%m/%d/%Y %I:%M:%S.%f %p") - datetime.strptime(self.start_time, "%m/%d/%Y %I:%M:%S.%f %p"))
-        
-        # self.start_time = self.time_data_sent
+                        datetime.strptime(self.time_data_sent, "%m/%d/%Y %H:%M:%S.%f %p") - datetime.strptime(self.start_time, "%m/%d/%Y %H:%M:%S.%f %p"))
+                        
         self.get_logger().info("Published joint names and positions")
 
     def save_to_csv(self, joint_names, positions, velocities, timestamp, time_delta):

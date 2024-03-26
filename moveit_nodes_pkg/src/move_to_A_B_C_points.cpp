@@ -49,58 +49,33 @@ int main(int argc, char* argv[])
   // Set a target Pose A
  auto const target_pose_A = []{
     geometry_msgs::msg::Pose msg;
-    msg.orientation.w = 1.0;
-    msg.position.x = 0.002;
+    msg.orientation.w = 2.0943951;
+    msg.position.x = 0.3;
     msg.position.y = 0.4;
-    msg.position.z = 0.292;
+    msg.position.z = 0.52;
     return msg;
   }();
   move_group_interface.setPoseTarget(target_pose_A);
-
-   // Set a target Pose B
-  auto const target_pose_B = [] {
-    geometry_msgs::msg::Pose msg;
-    msg.orientation.w = 1.0;
-    msg.position.x = 0.354;
-    msg.position.y = 0.296;
-    msg.position.z = 0.291;
-    return msg;
-  }();
-  move_group_interface.setPoseTarget(target_pose_B);
-
-  // Set a target Pose C
-  auto const target_pose_C = []{
-    geometry_msgs::msg::Pose msg;
-    msg.orientation.w = 1.0;
-    msg.position.x = 0.194;
-    msg.position.y = 0.513;
-    msg.position.z = 294;
-    return msg;
-  }();
-  move_group_interface.setPoseTarget(target_pose_C);
-
- 
-
 
   // Create a plan to that target pose
   prompt("Press 'next' in the RvizVisualToolsGui window to plan");
   draw_title("Planning");
   moveit_visual_tools.trigger();
-  auto const [success, plan] = [&move_group_interface] {
+  auto const [success_A, plan_A] = [&move_group_interface] {
     moveit::planning_interface::MoveGroupInterface::Plan msg;
     auto const ok = static_cast<bool>(move_group_interface.plan(msg));
     return std::make_pair(ok, msg);
   }();
 
   // Execute the plan
-  if (success)
+  if (success_A)
   {
-    draw_trajectory_tool_path(plan.trajectory_);
+    draw_trajectory_tool_path(plan_A.trajectory_);
     moveit_visual_tools.trigger();
     prompt("Press 'next' in the RvizVisualToolsGui window to execute");
     draw_title("Executing");
     moveit_visual_tools.trigger();
-    move_group_interface.execute(plan);
+    move_group_interface.execute(plan_A);
   }
   else
   {
@@ -108,6 +83,86 @@ int main(int argc, char* argv[])
     moveit_visual_tools.trigger();
     RCLCPP_ERROR(logger, "Planning failed!");
   }
+
+     // Set a target Pose B
+  auto const target_pose_B = [] {
+    geometry_msgs::msg::Pose msg;
+    msg.orientation.w = -0.2924419;
+    msg.position.x = 0.354;
+    msg.position.y = 0.296;
+    msg.position.z = 0.5;
+    return msg;
+  }();
+  move_group_interface.setPoseTarget(target_pose_B);
+
+
+    // Create a plan to that target pose
+  prompt("Press 'next' in the RvizVisualToolsGui window to plan");
+  draw_title("Planning");
+  moveit_visual_tools.trigger();
+  auto const [success_B, plan_B] = [&move_group_interface] {
+    moveit::planning_interface::MoveGroupInterface::Plan msg;
+    auto const ok = static_cast<bool>(move_group_interface.plan(msg));
+    return std::make_pair(ok, msg);
+  }();
+
+  // Execute the plan
+  if (success_B)
+  {
+    draw_trajectory_tool_path(plan_B.trajectory_);
+    moveit_visual_tools.trigger();
+    prompt("Press 'next' in the RvizVisualToolsGui window to execute");
+    draw_title("Executing");
+    moveit_visual_tools.trigger();
+    move_group_interface.execute(plan_B);
+  }
+  else
+  {
+    draw_title("Planning Failed!");
+    moveit_visual_tools.trigger();
+    RCLCPP_ERROR(logger, "Planning failed!");
+  }
+
+
+  // Set a target Pose C
+  auto const target_pose_C = []{
+    geometry_msgs::msg::Pose msg;
+    msg.orientation.w = 0.410485;
+    msg.position.x = 0.194;
+    msg.position.y = 0.513;
+    msg.position.z = 0.5;
+    return msg;
+  }();
+  move_group_interface.setPoseTarget(target_pose_C);
+
+ 
+  // Create a plan to that target pose
+  prompt("Press 'next' in the RvizVisualToolsGui window to plan");
+  draw_title("Planning");
+  moveit_visual_tools.trigger();
+  auto const [success_C, plan_C] = [&move_group_interface] {
+    moveit::planning_interface::MoveGroupInterface::Plan msg;
+    auto const ok = static_cast<bool>(move_group_interface.plan(msg));
+    return std::make_pair(ok, msg);
+  }();
+
+  // Execute the plan
+  if (success_C)
+  {
+    draw_trajectory_tool_path(plan_C.trajectory_);
+    moveit_visual_tools.trigger();
+    prompt("Press 'next' in the RvizVisualToolsGui window to execute");
+    draw_title("Executing");
+    moveit_visual_tools.trigger();
+    move_group_interface.execute(plan_C);
+  }
+  else
+  {
+    draw_title("Planning Failed!");
+    moveit_visual_tools.trigger();
+    RCLCPP_ERROR(logger, "Planning failed!");
+  }
+
 
   // Shutdown ROS
   rclcpp::shutdown();

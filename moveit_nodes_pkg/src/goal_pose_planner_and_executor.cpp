@@ -11,6 +11,12 @@
 
 using GripperPoseSrv = xarm_msgs::srv::GripperPose;
 
+
+
+/*
+Function: 
+*/
+
 void saveToCsv(const std::vector<double> points, const std::string& filename) {
     std::ofstream csvFile(filename);
     if (!csvFile.is_open()) {
@@ -64,8 +70,6 @@ void gripperPoseCallback(const std::shared_ptr<GripperPoseSrv::Request> request,
     bool success = static_cast<bool>(move_group_interface.plan(plan));
 
     saveToCsv(move_group_interface.getCurrentJointValues(), "interpolation_points.csv");
-
-    
     // Execute the plan
     if (success) {
         move_group_interface.execute(plan);

@@ -12,6 +12,7 @@ from datetime import datetime
 class JointStatesSubscriberNode(Node):
     def __init__(self):
         super().__init__('joint_states_subscriber_node')
+        self.freq = 60.0
 
         # Start time of the execution
         self.start_time = ''
@@ -39,7 +40,7 @@ class JointStatesSubscriberNode(Node):
         )
         self.joint_states_subscription  # prevent unused variable warning
         self.joint_info_publisher = self.create_publisher(JointNamesAndAngles, '/joint_info', 10)
-        self.timer_period = 0.5
+        self.timer_period = 1/self.freq
         self.timer = self.create_timer(self.timer_period, self.publisher_callback)
 
     def joint_states_callback(self, msg):
@@ -62,17 +63,20 @@ class JointStatesSubscriberNode(Node):
         joint_info_msg.positions = self.joint_positions
         joint_info_msg.velocities = self.joint_velocities
 
+        if self.trigger == True:
+            self.start_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f ")
+            self.trigger = False
+
+        # Time data is sent
+        self.time_data_sent = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f ")
+        joint_info_msg.timestamp = self.time_data_sent
         # Publish joint names and positions to another topic
         self.joint_info_publisher.publish(joint_info_msg)
 
-        if self.trigger == True:
-            self.start_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f %p")
-            self.trigger = False
-        # Time data is sent
-        self.time_data_sent = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f %p")
+
         self.save_to_csv(joint_info_msg.names, joint_info_msg.positions, \
-                         joint_info_msg.velocities, datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f %p"),\
-                        datetime.strptime(self.time_data_sent, "%m/%d/%Y %H:%M:%S.%f %p") - datetime.strptime(self.start_time, "%m/%d/%Y %H:%M:%S.%f %p"))
+                         joint_info_msg.velocities, self.time_data_sent,\
+                        datetime.strptime(self.time_data_sent, "%m/%d/%Y %H:%M:%S.%f ") - datetime.strptime(self.start_time, "%m/%d/%Y %H:%M:%S.%f "))
                         
         self.get_logger().info("Published joint names and positions")
 

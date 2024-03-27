@@ -186,7 +186,7 @@
     </joint>
 
     <link name="${prefix}link_tcp">
-      <visual>
+      <!-- <visual>
         <origin xyz = "0 0 0" rpy = "0 0 0"/>
         <material name="blue"/>
         <geometry>
@@ -199,7 +199,7 @@
         <geometry>
           <sphere radius = "0.01"/>
         </geometry>
-      </collision>
+      </collision> -->
     </link>
 
     <joint name="${prefix}joint_tcp" type="fixed">

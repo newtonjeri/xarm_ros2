@@ -7,6 +7,8 @@ Panels:
         - /Global Options1
         - /Status1
         - /RobotModel1
+        - /TF1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 617
   - Class: rviz_common/Selection
@@ -61,6 +63,21 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        left_finger:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_inner_knuckle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_outer_knuckle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         link1:
           Alpha: 1
           Show Axes: false
@@ -105,15 +122,115 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+        link_tcp:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_finger:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_inner_knuckle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_outer_knuckle:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         world:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+        xarm_gripper_base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Mass Properties:
+        Inertia: false
+        Mass: false
       Name: RobotModel
       TF Prefix: ""
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        left_finger:
+          Value: false
+        left_inner_knuckle:
+          Value: false
+        left_outer_knuckle:
+          Value: false
+        link1:
+          Value: false
+        link2:
+          Value: false
+        link3:
+          Value: false
+        link4:
+          Value: false
+        link5:
+          Value: false
+        link6:
+          Value: true
+        link7:
+          Value: false
+        link_base:
+          Value: false
+        link_eef:
+          Value: false
+        link_tcp:
+          Value: false
+        right_finger:
+          Value: false
+        right_inner_knuckle:
+          Value: false
+        right_outer_knuckle:
+          Value: false
+        world:
+          Value: false
+        xarm_gripper_base_link:
+          Value: false
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        world:
+          link_base:
+            link1:
+              link2:
+                link3:
+                  link4:
+                    link5:
+                      link6:
+                        link7:
+                          link_eef:
+                            xarm_gripper_base_link:
+                              left_inner_knuckle:
+                                {}
+                              left_outer_knuckle:
+                                left_finger:
+                                  {}
+                              link_tcp:
+                                {}
+                              right_inner_knuckle:
+                                {}
+                              right_outer_knuckle:
+                                right_finger:
+                                  {}
+      Update Interval: 0
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -129,6 +246,9 @@ Visualization Manager:
     - Class: rviz_default_plugins/Measure
       Line color: 128; 128; 0
     - Class: rviz_default_plugins/SetInitialPose
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -157,7 +277,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 3.1222100257873535
+      Distance: 1.8507400751113892
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -172,10 +292,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6253979802131653
+      Pitch: 0.7003980278968811
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.18356990814209
+      Yaw: 0.9753843545913696
     Saved: ~
 Window Geometry:
   Displays:
@@ -191,5 +311,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1200
-  X: 60
+  X: 70
   Y: 60

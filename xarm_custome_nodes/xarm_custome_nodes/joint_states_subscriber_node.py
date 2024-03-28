@@ -3,7 +3,10 @@ import rclpy
 import numpy as np
 from rclpy.node import Node
 from xarm_msgs.msg import JointNamesAndAngles
+
+
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Pose
 
 import csv
 import os
@@ -14,6 +17,7 @@ class JointStatesSubscriberNode(Node):
         super().__init__('joint_states_subscriber_node')
         self.freq = 60.0
 
+        self.tcp_pose = []
         # Start time of the execution
         self.start_time = ''
 
@@ -38,7 +42,16 @@ class JointStatesSubscriberNode(Node):
             self.joint_states_callback,
             10
         )
+
+        self.tcp_pose_subscriber = self.create_subscription(
+            Pose,
+            '/tcp_pose',
+            self.tcp_pose_callback,
+            10
+        )
+
         self.joint_states_subscription  # prevent unused variable warning
+        self.tcp_pose_subscriber  # prevent unused variable warning
         self.joint_info_publisher = self.create_publisher(JointNamesAndAngles, '/joint_info', 10)
         self.timer_period = 1/self.freq
         self.timer = self.create_timer(self.timer_period, self.publisher_callback)
@@ -53,6 +66,13 @@ class JointStatesSubscriberNode(Node):
         # Convert angles into degrees
         joint_positions_deg = np.rad2deg(self.joint_positions)
         self.joint_positions: JointNamesAndAngles.positions = list(joint_positions_deg)
+
+########################################################################
+        # Continue from here
+
+    def tcp_pose_callback(self, msg):
+        self.tcp_pose = [msg.orientation.w, msg.position.x, msg.position.y, msg.position.z]
+
 
 
     def publisher_callback(self):
@@ -74,13 +94,13 @@ class JointStatesSubscriberNode(Node):
         self.joint_info_publisher.publish(joint_info_msg)
 
 
-        self.save_to_csv(joint_info_msg.names, joint_info_msg.positions, \
+        self.save_to_csv(joint_info_msg.names, joint_info_msg.positions, self.tcp_pose,\
                          joint_info_msg.velocities, self.time_data_sent,\
                         datetime.strptime(self.time_data_sent, "%m/%d/%Y %H:%M:%S.%f ") - datetime.strptime(self.start_time, "%m/%d/%Y %H:%M:%S.%f "))
                         
         self.get_logger().info("Published joint names and positions")
 
-    def save_to_csv(self, joint_names, positions, velocities, timestamp, time_delta):
+    def save_to_csv(self, joint_names, positions, tcp_pose, velocities, timestamp, time_delta):
         if len(joint_names) != len(positions) or len(joint_names) != len(velocities):
             print("Error: Arrays must be of equal size.")
             return
@@ -88,9 +108,9 @@ class JointStatesSubscriberNode(Node):
         with open(self.exec_filename, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             if csvfile.tell() == 0:  # Check if the file is empty
-                csvwriter.writerow(['Joint Name', 'Position', 'Velocity', 'Time data is sent', 'Time Delta'])
+                csvwriter.writerow(['Joint Name', 'Joint Position', 'tcp_pose [w, x, y, z]', 'Velocity', 'Time data is sent', 'Time Delta'])
             for joint_name, position, velocity in zip(joint_names, positions, velocities):
-                csvwriter.writerow([joint_name, position, velocity, timestamp, time_delta])
+                csvwriter.writerow([joint_name, position, tcp_pose, velocity, timestamp, time_delta])
 
 
 

@@ -15,6 +15,8 @@ class TCPPosePublisherNode(Node):
     def __init__(self):
         super().__init__('tcp_pose_publisher_node')
 
+        self.freq = 60
+
         self.source_frame_name = 'world'
         # Declare and acquire `source_frame` parameter
         self.source_frame = self.declare_parameter(
@@ -34,7 +36,7 @@ class TCPPosePublisherNode(Node):
         self.publisher = self.create_publisher(Pose, '/tcp_pose', 1)
 
         # Call on_timer function every second
-        self.timer = self.create_timer(1.0, self.on_timer)
+        self.timer = self.create_timer(1/self.freq, self.on_timer)
 
     def on_timer(self):
         # # Store frame names in variables that will be used to

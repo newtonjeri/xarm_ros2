@@ -39,7 +39,7 @@ kinematics:
     y: 0
     z: 0
     roll: 1.5708
-    pitch: 0
+    pitch: 1.5708 # Changed the pitch value to 1.5708 to match the gripper home pose of the real arm
     yaw: 0
   joint7:
     x: 0.076

@@ -16,8 +16,16 @@ def generate_launch_description():
         executable='tcp_pose_publisher_node',
     )
 
+    # Data from unity node 
+    from_unity_node = Node(
+        name = "data_from_unity_analysis",
+        package = "xarm_custome_nodes",
+        executable = "data_from_unity_analysis"
+    )
+
 
     return LaunchDescription([
         joint_states_subscriber_node,
         tcp_pose_publisher_node,
+        from_unity_node
     ])

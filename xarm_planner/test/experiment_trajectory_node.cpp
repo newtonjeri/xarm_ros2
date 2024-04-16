@@ -188,8 +188,8 @@ int main(int argc, char** argv)
 	target_pose13.orientation.y = 0;
 	target_pose13.orientation.z = 0;
 	target_pose13.orientation.w = 0;
-    while (rclcpp::ok())
-    {
+    // while (rclcpp::ok())
+    // {
         pose_plan_req->target = target_pose1;
         call_request(pose_plan_client_, pose_plan_req);
         call_request(exec_plan_client_, exec_plan_req);
@@ -258,7 +258,7 @@ int main(int argc, char** argv)
         call_request(pose_plan_client_, pose_plan_req);
         call_request(exec_plan_client_, exec_plan_req);
 
-    }
+    // }
 
     RCLCPP_INFO(node->get_logger(), "experiment_trajectory_node over");
     return 0;

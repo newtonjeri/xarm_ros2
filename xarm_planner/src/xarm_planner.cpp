@@ -21,7 +21,7 @@ XArmPlanner::XArmPlanner(const rclcpp::Node::SharedPtr& node, const std::string&
 }
 
 XArmPlanner::XArmPlanner(const std::string& group_name)
-{
+{   
     node_ = rclcpp::Node::make_shared("xarm_planner_move_group_node");
     init(group_name);
 }
@@ -55,6 +55,7 @@ bool XArmPlanner::planPoseTarget(const geometry_msgs::msg::Pose& pose_target)
     bool success = move_group_->setPoseTarget(pose_target);
     if (!success)
         RCLCPP_WARN(node_->get_logger(), "setPoseTarget: out of bounds");
+ 
     success = (move_group_->plan(xarm_plan_) == moveit::core::MoveItErrorCode::SUCCESS);
     if (!success)
         RCLCPP_ERROR(node_->get_logger(), "planPoseTarget: plan failed");

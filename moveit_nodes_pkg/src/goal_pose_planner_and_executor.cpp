@@ -59,10 +59,10 @@ void gripperPoseCallback(const std::shared_ptr<GripperPoseSrv::Request> request,
 
     // Set a target Pose
     geometry_msgs::msg::Pose target_pose;
-    target_pose.orientation.w = w;
     target_pose.position.x = x;
     target_pose.position.y = y;
     target_pose.position.z = z;
+    target_pose.orientation.w = w;
     move_group_interface.setPoseTarget(target_pose);
 
     // Plan

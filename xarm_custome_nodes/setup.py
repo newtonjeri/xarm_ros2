@@ -25,6 +25,7 @@ setup(
             "unity_to_ros2_publisher_node = xarm_custome_nodes.unity_to_ros2_publisher_test_node:main",
             "unity_subscriber_node = xarm_custome_nodes.unity_subscriber:main",
             "tcp_pose_publisher_node = xarm_custome_nodes.tcp_pose_publisher_node:main",
+            "data_from_unity_analysis = xarm_custome_nodes.data_from_unity_analysis_node:main",
         ],
     },
 )

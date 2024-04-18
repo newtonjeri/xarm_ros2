@@ -31,6 +31,32 @@
     </xacro:unless>
     <xacro:property name="kinematics_params" value="${kinematics_config['kinematics']}"/>
 
+    <!-- Table plane to assist in collision detection and thus in trajectory generation  -->
+    <link name="${prefix}table_plane">
+      <visual>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://xarm_description/meshes/xarm7/visual/table_plane.stl" scale="0.0001 0.0001 0.0005"/>
+          <material name="Wood">
+            <color rgba="0.219 0.445 0.286 1.0"/>
+          <texture filename=""/>
+        </material>
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://xarm_description/meshes/xarm7/visual/table_plane.stl" scale="0.0001 0.0001 0.0005"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${prefix}link_base_table_plane_joint" type="fixed">
+      <origin xyz="0.6 -0.6 -0.02" rpy="0.0 0.0 1.5708"/>
+      <parent link="world"/>
+      <child link="${prefix}table_plane"/>
+    </joint>
+
     <link name="${prefix}link_base">
       <inertial>
         <origin xyz="-0.021131 -0.0016302 0.056488" rpy="0 0 0" />

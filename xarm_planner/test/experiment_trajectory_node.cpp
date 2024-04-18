@@ -235,13 +235,13 @@ int main(int argc, char** argv)
         call_request(pose_plan_client_, pose_plan_req);
         call_request(exec_plan_client_, exec_plan_req);
                 
-        pose_plan_req->target = target_pose8;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
+        // pose_plan_req->target = target_pose8;
+        // call_request(pose_plan_client_, pose_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
 
-        pose_plan_req->target = target_pose9;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
+        // pose_plan_req->target = target_pose9;
+        // call_request(pose_plan_client_, pose_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
 
         // pose_plan_req->target = target_pose10;
         // call_request(pose_plan_client_, pose_plan_req);

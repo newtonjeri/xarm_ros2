@@ -45,6 +45,6 @@ ros2 launch xarm_custome_nodes custom_nodes.launch.py
 Note that after finishing the motion (described below), this process should be killed to prevent writing of unnecessary data in the csv files
 
 ## Moving the robot using moveit rviz GUI
-To move the robot one has to select a start state and a goal state, for this experiment the defaul start state (<current>)
+To move the robot one has to select a start state and a goal state, for this experiment the default start state (current)
 is used while for the goal state the "target_pose" is selected, then the plan and execute button is pressed to move the robot.
 Once the robot reaches the goal state the goal state is changed to "home" then the paln and execute button is pressed to move the robot to the new goal pose.

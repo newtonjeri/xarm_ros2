@@ -4,7 +4,6 @@ import numpy as np
 from rclpy.node import Node
 from xarm_msgs.msg import JointNamesAndAngles
 
-
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Pose
 
@@ -12,17 +11,23 @@ import csv
 import os
 from datetime import datetime
 
+# Constant for conversion from microseconds to seconds
+TO_SECONDS = 1000000 
+
 class JointStatesSubscriberNode(Node):
     def __init__(self):
+        
         super().__init__('joint_states_subscriber_node')
-        self.freq = 60.0
-
-        self.tcp_pose = []
+        self.freq = 10.0    # Publish and subscription frequency
+        # List to store the end effector pose (w, x, y, z)
+        self.tcp_pose:float = []
         # Start time of the execution
         self.start_time = ''
 
         # Create boolean trigger to start saving data
         self.trigger = True
+
+
                 
         # Create the execution directory if it doesn't exist
         self.execution_dir = 'data'
@@ -31,7 +36,7 @@ class JointStatesSubscriberNode(Node):
 
         # File to store joint data shared to unity
         self.exec_filename = f"{self.execution_dir}/execution_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        self.plan_filename = f"{self.execution_dir}/plan_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        # self.plan_filename = f"{self.execution_dir}/plan_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
 
         self.joint_names = []
         self.joint_positions = []
@@ -76,7 +81,6 @@ class JointStatesSubscriberNode(Node):
 
 
     def publisher_callback(self):
-
         # Create a JointNamesAndAngles message to publish joint names and positions
         joint_info_msg = JointNamesAndAngles()
         joint_info_msg.names = self.joint_names
@@ -87,29 +91,36 @@ class JointStatesSubscriberNode(Node):
             self.start_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f ")
             self.trigger = False
 
+
         # Time data is sent
         self.time_data_sent = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f ")
         joint_info_msg.timestamp = self.time_data_sent
+
         # Publish joint names and positions to another topic
         self.joint_info_publisher.publish(joint_info_msg)
 
+        # Frame time 
+        self.frame_time = datetime.strptime(self.time_data_sent, "%m/%d/%Y %H:%M:%S.%f ") - datetime.strptime(self.start_time, "%m/%d/%Y %H:%M:%S.%f ")
+
 
         self.save_to_csv(joint_info_msg.names, joint_info_msg.positions, self.tcp_pose,\
-                         joint_info_msg.velocities, self.time_data_sent,\
-                        datetime.strptime(self.time_data_sent, "%m/%d/%Y %H:%M:%S.%f ") - datetime.strptime(self.start_time, "%m/%d/%Y %H:%M:%S.%f "))
+                         joint_info_msg.velocities, self.time_data_sent, \
+                         self.frame_time)
                         
         self.get_logger().info("Published joint names and positions")
 
-    def save_to_csv(self, joint_names, positions, tcp_pose, velocities, timestamp, time_delta):
-        if len(joint_names) != len(positions) or len(joint_names) != len(velocities):
+
+
+    def save_to_csv(self, joint_names, positions, tcp_pose, joint_velocities, timestamp, time_delta):
+        if len(joint_names) != len(positions) or len(joint_names) != len(joint_velocities):
             print("Error: Arrays must be of equal size.")
             return
 
         with open(self.exec_filename, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             if csvfile.tell() == 0:  # Check if the file is empty
-                csvwriter.writerow(['Joint Name', 'Joint Position', 'tcp_pose [w, x, y, z]', 'Velocity', 'Time data is sent', 'Time Delta'])
-            for joint_name, position, velocity in zip(joint_names, positions, velocities):
+                csvwriter.writerow(['Joint Name', 'Joint Position', 'tcp_pose [w, x, y, z]', 'Joint Velocity', 'Time data is sent', 'Time Delta'])
+            for joint_name, position, velocity in zip(joint_names, positions, joint_velocities):
                 csvwriter.writerow([joint_name, position, tcp_pose, velocity, timestamp, time_delta])
 
 

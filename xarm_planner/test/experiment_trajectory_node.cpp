@@ -82,9 +82,9 @@ int main(int argc, char** argv)
 	target_posehome.orientation.w = 0;
 
     geometry_msgs::msg::Pose target_pose1;
-    target_pose1.position.x = 0.4;
-	target_pose1.position.y = 0.0;
-	target_pose1.position.z = z_value;
+    target_pose1.position.x = 0.25;
+	target_pose1.position.y = 0.3;
+	target_pose1.position.z = (z_value + 0.12);
 	target_pose1.orientation.x = 0.7071;
 	target_pose1.orientation.y = 0;
 	target_pose1.orientation.z = 0.7071;
@@ -108,168 +108,168 @@ int main(int argc, char** argv)
 	target_pose3.orientation.z = 0.7071;
 	target_pose3.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose4;
-    target_pose4.position.x = 0.2586;
-	target_pose4.position.y = -0.1;
-	target_pose4.position.z = z_value;
-	target_pose4.orientation.x = 0.7071;
-	target_pose4.orientation.y = 0;
-	target_pose4.orientation.z = 0.7071;
-	target_pose4.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose4;
+    // target_pose4.position.x = 0.2586;
+	// target_pose4.position.y = -0.1;
+	// target_pose4.position.z = z_value;
+	// target_pose4.orientation.x = 0.7071;
+	// target_pose4.orientation.y = 0;
+	// target_pose4.orientation.z = 0.7071;
+	// target_pose4.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose5;
-    target_pose5.position.x = 0.5414;
-	target_pose5.position.y = -0.1;
-	target_pose5.position.z = z_value;
-	target_pose5.orientation.x = 0.7071;
-	target_pose5.orientation.y = 0;
-	target_pose5.orientation.z = 0.7071;
-	target_pose5.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose5;
+    // target_pose5.position.x = 0.5414;
+	// target_pose5.position.y = -0.1;
+	// target_pose5.position.z = z_value;
+	// target_pose5.orientation.x = 0.7071;
+	// target_pose5.orientation.y = 0;
+	// target_pose5.orientation.z = 0.7071;
+	// target_pose5.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose6;
-    target_pose6.position.x = 0.6;
-	target_pose6.position.y = 0;
-	target_pose6.position.z = z_value;
-	target_pose6.orientation.x = 0.7071;
-	target_pose6.orientation.y = 0;
-	target_pose6.orientation.z = 0.7071;
-	target_pose6.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose6;
+    // target_pose6.position.x = 0.6;
+	// target_pose6.position.y = 0;
+	// target_pose6.position.z = z_value;
+	// target_pose6.orientation.x = 0.7071;
+	// target_pose6.orientation.y = 0;
+	// target_pose6.orientation.z = 0.7071;
+	// target_pose6.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose7;
-    target_pose7.position.x = 0.5414;
-	target_pose7.position.y = -0.1;
-	target_pose7.position.z = z_value;
-	target_pose7.orientation.x = 0.7071;
-	target_pose7.orientation.y = 0;
-	target_pose7.orientation.z = 0.7071;
-	target_pose7.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose7;
+    // target_pose7.position.x = 0.5414;
+	// target_pose7.position.y = -0.1;
+	// target_pose7.position.z = z_value;
+	// target_pose7.orientation.x = 0.7071;
+	// target_pose7.orientation.y = 0;
+	// target_pose7.orientation.z = 0.7071;
+	// target_pose7.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose8;
-    target_pose8.position.x = 0.3;
-	target_pose8.position.y = 0.1414;
-	target_pose8.position.z = z_value;
-	target_pose8.orientation.x = 0.7071;
-	target_pose8.orientation.y = 0;
-	target_pose8.orientation.z = 0.7071;
-	target_pose8.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose8;
+    // target_pose8.position.x = 0.3;
+	// target_pose8.position.y = 0.1414;
+	// target_pose8.position.z = z_value;
+	// target_pose8.orientation.x = 0.7071;
+	// target_pose8.orientation.y = 0;
+	// target_pose8.orientation.z = 0.7071;
+	// target_pose8.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose9;
-    target_pose9.position.x = 0.4;
-	target_pose9.position.y = 0.2;
-	target_pose9.position.z = z_value;
-	target_pose9.orientation.x = 1;
-	target_pose9.orientation.y = 0;
-	target_pose9.orientation.z = 0;
-	target_pose9.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose9;
+    // target_pose9.position.x = 0.4;
+	// target_pose9.position.y = 0.2;
+	// target_pose9.position.z = z_value;
+	// target_pose9.orientation.x = 1;
+	// target_pose9.orientation.y = 0;
+	// target_pose9.orientation.z = 0;
+	// target_pose9.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose10;
-    target_pose10.position.x = 0.5;
-	target_pose10.position.y = 0.1414;
-	target_pose10.position.z = z_value;
-	target_pose10.orientation.x = 1;
-	target_pose10.orientation.y = 0;
-	target_pose10.orientation.z = 0;
-	target_pose10.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose10;
+    // target_pose10.position.x = 0.5;
+	// target_pose10.position.y = 0.1414;
+	// target_pose10.position.z = z_value;
+	// target_pose10.orientation.x = 1;
+	// target_pose10.orientation.y = 0;
+	// target_pose10.orientation.z = 0;
+	// target_pose10.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose11;
-    target_pose11.position.x = 0.3;
-	target_pose11.position.y = -0.1414;
-	target_pose11.position.z = z_value;
-	target_pose11.orientation.x = 1;
-	target_pose11.orientation.y = 0;
-	target_pose11.orientation.z = 0;
-	target_pose11.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose11;
+    // target_pose11.position.x = 0.3;
+	// target_pose11.position.y = -0.1414;
+	// target_pose11.position.z = z_value;
+	// target_pose11.orientation.x = 1;
+	// target_pose11.orientation.y = 0;
+	// target_pose11.orientation.z = 0;
+	// target_pose11.orientation.w = 0;
 
-    geometry_msgs::msg::Pose target_pose12;
-    target_pose12.position.x = 0.4;
-	target_pose12.position.y = -0.2;
-	target_pose12.position.z = z_value;
-	target_pose12.orientation.x = 1;
-	target_pose12.orientation.y = 0;
-	target_pose12.orientation.z = 0;
-	target_pose12.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose12;
+    // target_pose12.position.x = 0.4;
+	// target_pose12.position.y = -0.2;
+	// target_pose12.position.z = z_value;
+	// target_pose12.orientation.x = 1;
+	// target_pose12.orientation.y = 0;
+	// target_pose12.orientation.z = 0;
+	// target_pose12.orientation.w = 0;
     
-    geometry_msgs::msg::Pose target_pose13;
-    target_pose13.position.x = 0.5;
-	target_pose13.position.y = -0.1414;
-	target_pose13.position.z = z_value;
-	target_pose13.orientation.x = 1;
-	target_pose13.orientation.y = 0;
-	target_pose13.orientation.z = 0;
-	target_pose13.orientation.w = 0;
+    // geometry_msgs::msg::Pose target_pose13;
+    // target_pose13.position.x = 0.5;
+	// target_pose13.position.y = -0.1414;
+	// target_pose13.position.z = z_value;
+	// target_pose13.orientation.x = 1;
+	// target_pose13.orientation.y = 0;
+	// target_pose13.orientation.z = 0;
+	// target_pose13.orientation.w = 0;
     // while (rclcpp::ok())
     // {
         pose_plan_req->target = target_pose1;
         call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
 
-        pose_plan_req->target = target_pose2;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-
-        pose_plan_req->target = target_pose3;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-
-        pose_plan_req->target = target_pose4;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-                
-        pose_plan_req->target = target_pose1;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-
-        pose_plan_req->target = target_pose7;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-
-        pose_plan_req->target = target_pose6;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-
-        pose_plan_req->target = target_pose5;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-
-        pose_plan_req->target = target_pose1;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
-                
-        // pose_plan_req->target = target_pose8;
+        // pose_plan_req->target = target_pose2;
         // call_request(pose_plan_client_, pose_plan_req);
         // call_request(exec_plan_client_, exec_plan_req);
 
-        // pose_plan_req->target = target_pose9;
+        // pose_plan_req->target = target_pose3;
         // call_request(pose_plan_client_, pose_plan_req);
         // call_request(exec_plan_client_, exec_plan_req);
 
-        // pose_plan_req->target = target_pose10;
+        // pose_plan_req->target = target_pose4;
+        // call_request(pose_plan_client_, pose_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
+                
+        pose_plan_req->target = target_posehome;
+        call_request(pose_plan_client_, pose_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
+
+        // pose_plan_req->target = target_pose7;
+        // call_request(pose_plan_client_, pose_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
+
+        // pose_plan_req->target = target_pose6;
+        // call_request(pose_plan_client_, pose_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
+
+        // pose_plan_req->target = target_pose5;
         // call_request(pose_plan_client_, pose_plan_req);
         // call_request(exec_plan_client_, exec_plan_req);
 
         // pose_plan_req->target = target_pose1;
         // call_request(pose_plan_client_, pose_plan_req);
         // call_request(exec_plan_client_, exec_plan_req);
+                
+        // // pose_plan_req->target = target_pose8;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
 
-        // pose_plan_req->target = target_pose11;
-        // call_request(pose_plan_client_, pose_plan_req);
-        // call_request(exec_plan_client_, exec_plan_req);
-                
-        // pose_plan_req->target = target_pose12;
-        // call_request(pose_plan_client_, pose_plan_req);
-        // call_request(exec_plan_client_, exec_plan_req);
-                
-        // pose_plan_req->target = target_pose13;
-        // call_request(pose_plan_client_, pose_plan_req);
-        // call_request(exec_plan_client_, exec_plan_req);
-                
-        // pose_plan_req->target = target_pose13;
-        // call_request(pose_plan_client_, pose_plan_req);
-        // call_request(exec_plan_client_, exec_plan_req);
+        // // pose_plan_req->target = target_pose9;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
 
-        pose_plan_req->target = target_posehome;
-        call_request(pose_plan_client_, pose_plan_req);
-        call_request(exec_plan_client_, exec_plan_req);
+        // // pose_plan_req->target = target_pose10;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
+
+        // // pose_plan_req->target = target_pose1;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
+
+        // // pose_plan_req->target = target_pose11;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
+                
+        // // pose_plan_req->target = target_pose12;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
+                
+        // // pose_plan_req->target = target_pose13;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
+                
+        // // pose_plan_req->target = target_pose13;
+        // // call_request(pose_plan_client_, pose_plan_req);
+        // // call_request(exec_plan_client_, exec_plan_req);
+
+        // pose_plan_req->target = target_posehome;
+        // call_request(pose_plan_client_, pose_plan_req);
+        // call_request(exec_plan_client_, exec_plan_req);
 
 
     // }

@@ -1,5 +1,3 @@
-import math
-
 from geometry_msgs.msg import Pose
 
 import rclpy
@@ -15,9 +13,9 @@ class TCPPosePublisherNode(Node):
     def __init__(self):
         super().__init__('tcp_pose_publisher_node')
 
-        self.freq = 60
+        self.freq = 10
 
-        self.source_frame_name = 'world'
+        self.source_frame_name = 'link_base'
         # Declare and acquire `source_frame` parameter
         self.source_frame = self.declare_parameter(
           'source_frame', self.source_frame_name).get_parameter_value().string_value
@@ -39,11 +37,6 @@ class TCPPosePublisherNode(Node):
         self.timer = self.create_timer(1/self.freq, self.on_timer)
 
     def on_timer(self):
-        # # Store frame names in variables that will be used to
-        # # compute transformations
-        # self.target_frame = self.source_frame
-        # self.source_frame = self.target_frame
-
         # Look up for the transformation between target_frame and source frame frames
         # and send velocity commands for source frame to reach target_frame
         try:

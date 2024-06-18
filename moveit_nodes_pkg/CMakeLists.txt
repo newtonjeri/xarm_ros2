@@ -14,6 +14,8 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(xarm_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+
 
 
 add_executable(goal_pose_planner_and_executor src/goal_pose_planner_and_executor.cpp)
@@ -51,11 +53,38 @@ ament_target_dependencies(
   "moveit_msgs"
 )
 
+
+add_executable(mover_node src/mover.cpp)
+ament_target_dependencies(
+  mover_node
+  "moveit_ros_planning_interface"
+  "rclcpp"
+  "std_msgs"
+  "geometry_msgs"
+  "moveit_msgs"
+  "sensor_msgs"
+  "xarm_msgs"
+)
+
+add_executable(unity_subscriber_cpp_node src/unity_subscriber.cpp)
+ament_target_dependencies(
+  unity_subscriber_cpp_node
+  "moveit_ros_planning_interface"
+  "rclcpp"
+  "std_msgs"
+  "geometry_msgs"
+  "moveit_msgs"
+  "sensor_msgs"
+  "xarm_msgs"
+)
+
 install(
   TARGETS 
     goal_pose_planner_and_executor
     joints_position_planner_and_executor
     move_to_A_B_C_points
+    mover_node
+    unity_subscriber_cpp_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

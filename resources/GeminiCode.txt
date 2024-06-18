@@ -1,0 +1,64 @@
+from moveit_commander_py import PlanningSceneInterface, RobotCommander
+
+# ... other imports
+
+joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
+
+def rotate_pose(pose, roll, pitch, yaw):
+    # Implement rotation logic using MoveIt2 utilities (if needed)
+    # ...
+    return pose  # Placeholder, modify if using rotation
+
+def plan_trajectory(planning_scene_interface, robot_commander, destination_pose, start_joint_angles):
+    # Set start state based on joint angles
+    robot_state = robot_commander.get_current_state()
+    robot_state.joint_state.name = joint_names
+    robot_state.joint_state.position = start_joint_angles
+    planning_scene_interface.set_current_state(robot_state)
+
+    # Set goal pose
+    planning_scene_interface.set_goal_constraints(MoveGroupConstraint(pose=destination_pose))
+
+    # Plan the motion
+    plan = planning_scene_interface.plan()
+
+    if not plan.joint_trajectory.points:
+        raise Exception("Trajectory could not be planned for the destination pose.")
+
+    return plan
+
+
+def niryo_unity_callback(msg):
+    global planning, motion_plan
+    if not planning:
+        planning = True
+        # Extract data from ROS2 message (assuming msg contains target pose and arm rotation)
+        destination_pose = msg.target_pose
+        robot_arm_rotation = msg.robot_arm_rotation  # Modify field names as needed
+
+        # Plan the trajectory
+        motion_plan = plan_trajectory(planning_scene_interface, robot_commander, destination_pose, msg.joints_input.joints)
+
+
+def moveit_server():
+    # Initialize MoveIt2 interfaces
+    planning_scene_interface = PlanningSceneInterface()
+    robot_commander = RobotCommander()
+
+    # ... other setup (ROS2 topics, service)
+
+    while not rospy.is_shutdown():
+        if motion_plan:
+            # Execute the planned trajectory
+            robot_commander.execute(motion_plan, wait=True)
+
+        # ... ROS2 communication and state handling
+
+        planning = False
+        motion_plan = None
+
+    # ... shutdown
+
+
+if __name__ == "__main__":
+    moveit_server()

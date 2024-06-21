@@ -78,6 +78,13 @@ ament_target_dependencies(
   "xarm_msgs"
 )
 
+add_executable(task_plan_node src/task_node.cpp)
+ament_target_dependencies(
+  task_plan_node
+  "moveit_ros_planning_interface"
+  "rclcpp"
+)
+
 install(
   TARGETS 
     goal_pose_planner_and_executor
@@ -85,6 +92,7 @@ install(
     move_to_A_B_C_points
     mover_node
     unity_subscriber_cpp_node
+    task_plan_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

@@ -85,6 +85,13 @@ ament_target_dependencies(
   "rclcpp"
 )
 
+add_executable(gripper_node src/gripper_node.cpp)
+ament_target_dependencies(
+  gripper_node
+  "moveit_ros_planning_interface"
+  "rclcpp"
+)
+
 install(
   TARGETS 
     goal_pose_planner_and_executor
@@ -93,6 +100,7 @@ install(
     mover_node
     unity_subscriber_cpp_node
     task_plan_node
+    gripper_node
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

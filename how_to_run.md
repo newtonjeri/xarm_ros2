@@ -10,7 +10,7 @@ This file contains the procedure for running the real xarm7 robot arm
 1. Open terminal and paste the below commands to navigate to the root folder of the workspace and run the ros2 tcp endpoint to connect to unity
 ```bash
 # Navigate to the root of the workspace 
-cd /home/xarm7_dev/xarm7_ws;
+cd /home/shared_folder/xarm7_ws;
 
 # Source the workspace
 source install/setup.bash;
@@ -28,7 +28,7 @@ Use the IP address output in the terminal after running this command
 2. Open another terminal window and paste the following commands to launch the moveit config folder for the real arm
 ```bash
 # Navigate to the root of the workspace 
-cd /home/xarm7_dev/xarm7_ws;
+cd /home/shared_folder/xarm7_ws;
 
 # Source the workspace
 source install/setup.bash;
@@ -40,7 +40,7 @@ ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py add_gripper:=true
 3. Open another terminal and paste the below commands to run the nodes responsible for publishing data to unity and writing the data to files
 ```bash
 # Navigate to the root of the workspace 
-cd /home/xarm7_dev/xarm7_ws;
+cd /home/shared_folder/xarm7_ws;
 
 # Source the workspace
 source install/setup.bash;
@@ -53,7 +53,7 @@ Note that after finishing the motion (described below), this process should be k
 4. Open another terminal and paste the following commands to run the node that gets the joint angles from unity
 ```bash
 # Navigate to the root of the workspace 
-cd /home/xarm7_dev/xarm7_ws;
+cd /home/shared_folder/xarm7_ws;
 
 # Source the workspace
 source install/setup.bash;
@@ -71,7 +71,7 @@ Once the robot reaches the goal state the goal state is changed to "home" then t
 ## Moving the robot using Ufactory Studio
 - Open the terminal and navigate to the folder where the appimage of Ufactory Studio is
 ```bash
-cd /home/xarm7_dev/Ufactory/
+cd /home/shared_folder/Ufactory/
 ```
 - Run the application using this command
 ```bash

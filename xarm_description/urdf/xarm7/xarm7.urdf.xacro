@@ -52,7 +52,7 @@
     </link>
 
     <joint name="${prefix}link_base_table_plane_joint" type="fixed">
-      <origin xyz="0.6 -0.6 -0.02" rpy="0.0 0.0 1.5708"/>
+      <origin xyz="0.6 -0.6 0.00" rpy="0.0 0.0 1.5708"/>
       <parent link="world"/>
       <child link="${prefix}table_plane"/>
     </joint>

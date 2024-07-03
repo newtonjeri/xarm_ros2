@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_interface/planning_interface.h>
+#include <moveit_visual_tools/moveit_visual_tools.h>
 
 #include <geometry_msgs/msg/pose.hpp>
 
@@ -15,23 +16,27 @@ const double max_acceleration_scaling_factor = 0.1; // [move_group_interface] de
 class PickAndPlaceTask
 {
 public:
-    PickAndPlaceTask(rclcpp::Node::SharedPtr &node, std::string &group_name) : node_(node)
+    PickAndPlaceTask(
+        rclcpp::Node::SharedPtr &node,
+        std::string &group_name
+        ) : node_(node)
     {
         init(group_name);
+        // moveit_visual_tools = moveit_visual_tools::MoveItVisualTools{node_, "world", rviz_visual_tools::RVIZ_MARKER_TOPIC,
+        //                                       move_group->getRobotModel() };
+
+         moveit_visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(
+            node_, "world", rviz_visual_tools::RVIZ_MARKER_TOPIC, move_group->getRobotModel());
+
     }
 
-    void init(const std::string &group_name)
-    {
-        move_group = std::make_shared<moveit::planning_interface::MoveGroupInterface>(node_, group_name);
-        // move_group->setEndEffectorLink("link_eef");
-        RCLCPP_INFO(LOGGER, "Planning frame: %s", move_group->getPlanningFrame().c_str());
-        RCLCPP_INFO(LOGGER, "End effector link: %s", move_group->getEndEffectorLink().c_str());
-        move_group->setMaxVelocityScalingFactor(max_velocity_scaling_factor);
-        move_group->setMaxAccelerationScalingFactor(max_acceleration_scaling_factor);
-    }
+    // Method to initialise and setup the move group interfaces
+    void init(const std::string &group_name);
 
     // Method to plan to a pose target
-    void plan_and_execute_to_pose_goal(geometry_msgs::msg::Pose &target_pose);
+    void plan_and_execute_to_pose_goal(
+        const geometry_msgs::msg::Pose &target_pose,
+        bool is_constrained_planning);
 
     // Method to generate and execute to a joint space target
     void plan_and_execute_to_joint_space_goal(std::vector<double> &joint_values);
@@ -45,22 +50,62 @@ public:
         const int iterations,
         const std::vector<double> step);
 
-    // Method to plan and execute a trajectory with equality constrains
-    void PickAndPlaceTask::plan_and_execute_with_equality_constraint(
-        const geometry_msgs::msg::Pose &start_pose,
-        const std::vector<double> plane_dimension,
+    // Method to plan and execute a trajectory with equality line constraint
+    void plan_and_execute_with_line_equality_constraint(
+        const geometry_msgs::msg::Pose start_pose,
+        const geometry_msgs::msg::Pose line_pose,
+        const std::vector<double> relative_position);
+
+    // Method to plan and execute a trajectory with equality plane constraint
+    void plan_and_execute_with_plane_equality_constraint(
+        const geometry_msgs::msg::Pose target_pose,
         const geometry_msgs::msg::Pose plane_pose,
-        const geometry_msgs::msg::Pose target_pose);
+        const std::vector<double> relative_position);
+
+    // Method to plan and execute a trajectory with box constraints
+    void plan_and_execute_with_box_constraint(    
+        const geometry_msgs::msg::Pose start_pose,
+        const geometry_msgs::msg::Pose box_pose,
+        const std::vector<double> relative_position);
+
+    // Method to calculate an offset pose from the current pose
+    geometry_msgs::msg::Pose get_relative_pose(
+        geometry_msgs::msg::Pose pose,
+        const std::vector<double> relative_pos);
+
+    // Function to visualise a plane in rviz
+    void visualize_plane(
+        const Eigen::Vector3d &normal,
+        double distance);
 
 private:
     rclcpp::Node::SharedPtr node_;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group;
+    std::shared_ptr<moveit_visual_tools::MoveItVisualTools> moveit_visual_tools_;
 };
 
-void PickAndPlaceTask::plan_and_execute_to_pose_goal(geometry_msgs::msg::Pose &target_pose)
+void PickAndPlaceTask::init(const std::string &group_name)
+    {
+        move_group = std::make_shared<moveit::planning_interface::MoveGroupInterface>(node_, group_name);
+
+        // move_group->setEndEffectorLink("link_eef");
+        RCLCPP_INFO(LOGGER, "Planning frame: %s", move_group->getPlanningFrame().c_str());
+        RCLCPP_INFO(LOGGER, "End effector link: %s", move_group->getEndEffectorLink().c_str());
+        move_group->setMaxVelocityScalingFactor(max_velocity_scaling_factor);
+        move_group->setMaxAccelerationScalingFactor(max_acceleration_scaling_factor);
+    }
+
+void PickAndPlaceTask::plan_and_execute_to_pose_goal(
+    const geometry_msgs::msg::Pose &target_pose,
+    bool is_constrained_planning)
 {
+
     bool success = move_group->setPoseTarget(target_pose);
 
+    if (is_constrained_planning)
+    {
+        move_group->setPlanningTime(10.0);
+    }
     if (!success)
     {
         RCLCPP_WARN(node_->get_logger(), "Set Target Pose is not reachable!");
@@ -135,32 +180,198 @@ void PickAndPlaceTask::plan_and_execute_cartesian_path(
 }
 
 /* Continue From Here */
-void PickAndPlaceTask::plan_and_execute_with_equality_constraint(
-    const geometry_msgs::msg::Pose &start_pose,
-    const std::vector<double> line_dimensions,
+void PickAndPlaceTask::plan_and_execute_with_line_equality_constraint(
+    const geometry_msgs::msg::Pose start_pose,
     const geometry_msgs::msg::Pose line_pose,
-    const geometry_msgs::msg::Pose target_pose)
+    const std::vector<double> relative_position)
 {
 
     moveit_msgs::msg::PositionConstraint line_constraint;
     line_constraint.header.frame_id = move_group->getPoseReferenceFrame();
     line_constraint.link_name = move_group->getEndEffectorLink();
+
+
     shape_msgs::msg::SolidPrimitive line;
     line.type = shape_msgs::msg::SolidPrimitive::BOX;
-    line.dimensions = line_dimensions;
+    line.dimensions = {0.0005, 0.0005, 1.0};
     line_constraint.constraint_region.primitives.emplace_back(line);
 
-    ////////////////////////////////////////////////////////////////////
+    line_constraint.constraint_region.primitive_poses.emplace_back(line_pose);
+    line_constraint.weight = 1.0;
+
     moveit_msgs::msg::Constraints line_constraints;
     line_constraints.position_constraints.emplace_back(line_constraint);
     line_constraints.name = "use_equality_constraints";
     move_group->setPathConstraints(line_constraints);
 
+    // Define the target pose with an offset from the start pose
+    auto target = get_relative_pose(start_pose, relative_position);
 
+    // Visualise line
+    moveit_visual_tools_->publishLine(start_pose.position, target.position, rviz_visual_tools::TRANSLUCENT_DARK);
+    moveit_visual_tools_->trigger();
 
-    move_group->setPoseTarget(target_pose);
+    // Set the pose target and planning parameters
+    move_group->setPoseTarget(target);
     move_group->setPlanningTime(10.0);
-    move_group->plan(plan);
+    // plan_and_execute_to_pose_goal(target_pose, true);
+    // Plan and execute
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    bool success = (move_group->plan(plan) == moveit::core::MoveItErrorCode::SUCCESS);
+    RCLCPP_INFO(LOGGER, "Plan with line constraint %s", success ? "SUCCEEDED" : "FAILED");
+
+    if (success)
+    {
+        move_group->execute(plan);
+    }
+    else
+    {
+        RCLCPP_ERROR(LOGGER, "Planning failed, execution skipped.");
+    }
+    
+    // Clear path constraints after planning and execution
+    move_group->clearPathConstraints();
+}
+
+/* Function to perform a plane equality constrained planning */
+void PickAndPlaceTask::plan_and_execute_with_plane_equality_constraint(
+    const geometry_msgs::msg::Pose start_pose,
+    const geometry_msgs::msg::Pose plane_pose,
+    const std::vector<double> relative_position)
+{
+    // Define the position constraint
+    moveit_msgs::msg::PositionConstraint plane_constraint;
+    plane_constraint.header.frame_id = move_group->getPoseReferenceFrame();
+    plane_constraint.link_name = move_group->getEndEffectorLink();
+    
+    // Define the plane as a very thin box
+    shape_msgs::msg::SolidPrimitive plane;
+    plane.type = shape_msgs::msg::SolidPrimitive::BOX;
+    plane.dimensions = {1.0, 0.0005, 1.0};
+    plane_constraint.constraint_region.primitives.emplace_back(plane);
+
+    // Add the pose for the plane constraint
+    plane_constraint.constraint_region.primitive_poses.emplace_back(plane_pose);
+    plane_constraint.weight = 1.0;
+
+    // Set the path constraints
+    moveit_msgs::msg::Constraints plane_constraints;
+    plane_constraints.position_constraints.emplace_back(plane_constraint);
+    plane_constraints.name = "use_equality_constraints";
+    move_group->setPathConstraints(plane_constraints);
+
+    // Define the target pose with a relative offset
+    auto target = get_relative_pose(start_pose, relative_position);
+    
+    // Visualize the plane (assuming you have a correct implementation of visualize_plane)
+    visualize_plane({0, 0, 1}, plane_pose.position.z);
+
+    // Set the pose target and planning parameters
+    move_group->setPoseTarget(target);
+    move_group->setPlanningTime(10.0);
+
+    // Plan and execute
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    bool success = (move_group->plan(plan) == moveit::core::MoveItErrorCode::SUCCESS);
+    RCLCPP_INFO(LOGGER, "Plan with plane constraint %s", success ? "SUCCEEDED" : "FAILED");
+
+    if (success)
+    {
+        move_group->execute(plan);
+    }
+    else
+    {
+        RCLCPP_ERROR(LOGGER, "Planning failed, execution skipped.");
+    }
+
+    // Clear path constraints after planning and execution
+    move_group->clearPathConstraints();
+}
+
+
+void PickAndPlaceTask::plan_and_execute_with_box_constraint(
+    const geometry_msgs::msg::Pose start_pose,
+    const geometry_msgs::msg::Pose box_pose,
+    const std::vector<double> relative_position
+){
+    moveit_msgs::msg::PositionConstraint box_constraint;
+    box_constraint.header.frame_id = move_group->getPoseReferenceFrame();
+    box_constraint.link_name = move_group->getEndEffectorLink();
+
+
+    shape_msgs::msg::SolidPrimitive box;
+    box.type = shape_msgs::msg::SolidPrimitive::BOX;
+    box.dimensions = { 0.1, 0.4, 0.4 };
+    box_constraint.constraint_region.primitives.emplace_back(box);
+
+
+    box_constraint.constraint_region.primitive_poses.emplace_back(box_pose);
+    box_constraint.weight = 1.0;
+
+    // Visualize the box constraint
+    Eigen::Vector3d box_point_1(box_pose.position.x - box.dimensions[0] / 2, box_pose.position.y - box.dimensions[1] / 2,
+                                box_pose.position.z - box.dimensions[2] / 2);
+    Eigen::Vector3d box_point_2(box_pose.position.x + box.dimensions[0] / 2, box_pose.position.y + box.dimensions[1] / 2,
+                                box_pose.position.z + box.dimensions[2] / 2);
+    moveit_visual_tools_->publishCuboid(box_point_1, box_point_2, rviz_visual_tools::TRANSLUCENT_DARK);
+    moveit_visual_tools_->trigger();
+
+    moveit_msgs::msg::Constraints box_constraints;
+    box_constraints.position_constraints.emplace_back(box_constraint);
+    move_group->setPathConstraints(box_constraints);
+
+    // Define the target pose with a relative offset
+    auto target = get_relative_pose(start_pose, relative_position);
+
+    move_group->setPoseTarget(target);
+    move_group->setPlanningTime(10.0);
+
+    // Plan and execute
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    bool success = (move_group->plan(plan) == moveit::core::MoveItErrorCode::SUCCESS);
+    RCLCPP_INFO(LOGGER, "Plan with plane constraint %s", success ? "SUCCEEDED" : "FAILED");
+
+    if (success)
+    {
+        move_group->execute(plan);
+    }
+    else
+    {
+        RCLCPP_ERROR(LOGGER, "Planning failed, execution skipped.");
+    }
+
+    // Clear path constraints after planning and execution
+    move_group->clearPathConstraints();
+}
+
+// Function to set a relative position to be used for orientation constrained planning
+geometry_msgs::msg::Pose PickAndPlaceTask::get_relative_pose(
+    geometry_msgs::msg::Pose pose,
+   const std::vector<double> relative_pos)
+{
+    auto local_current_pose = pose;
+    // Creates a pose at a given positional offset from the current pose
+    auto get_relative_pose = [local_current_pose, this](double x, double y, double z)
+    {
+        auto target_pose = local_current_pose;
+        target_pose.position.x += x;
+        target_pose.position.y += y;
+        target_pose.position.z += z;
+        this->moveit_visual_tools_->publishSphere(local_current_pose, rviz_visual_tools::RED, 0.05);
+        this->moveit_visual_tools_->publishSphere(target_pose, rviz_visual_tools::GREEN, 0.05);
+        this->moveit_visual_tools_->trigger();
+        return target_pose;
+    };
+
+    auto relative_pose = get_relative_pose(relative_pos[0], relative_pos[1], relative_pos[2]);
+    return relative_pose;
+}
+
+
+void PickAndPlaceTask::visualize_plane(const Eigen::Vector3d& normal, double distance)
+{
+    moveit_visual_tools_->publishNormalAndDistancePlane(normal, distance, rviz_visual_tools::TRANSLUCENT_DARK);
+    moveit_visual_tools_->trigger();
 }
 
 void exit_sig_handler([[maybe_unused]] int signum)
@@ -168,6 +379,7 @@ void exit_sig_handler([[maybe_unused]] int signum)
     fprintf(stderr, "[pick_and_place_node] Ctrl+C cought, exit process...\n");
     exit(-1);
 }
+
 
 // Main Function
 int main(int argc, char **argv)
@@ -221,8 +433,21 @@ int main(int argc, char **argv)
     {
         geometry_msgs::msg::Pose msg;
         msg.position.x = 0.45;
-        msg.position.y = 0.0;
-        msg.position.z = 0.293486;
+        msg.position.y = 0.10;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto end_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.13;
+        msg.position.y = -0.10;
+        msg.position.z = 0.2935;
         msg.orientation.x = 0.707107;
         msg.orientation.y = 0.0;
         msg.orientation.z = 0.707107;
@@ -256,13 +481,53 @@ int main(int argc, char **argv)
         return msg;
     }();
 
+
+    auto box_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.4;
+        msg.position.y = 0.0;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
+    auto plane_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.4;
+        msg.position.y = 0.0;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
+    auto line_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.4;
+        msg.position.y = 0.0;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
     /* Waypoints */
     std::vector<geometry_msgs::msg::Pose>
         waypoints;
 
-    arm_node->plan_and_execute_to_pose_goal(pregrasp_pose);
-    arm_node->plan_and_execute_to_pose_goal(preplace_pose);
-    arm_node->plan_and_execute_to_pose_goal(home_pose);
+    // arm_node->plan_and_execute_to_pose_goal(pregrasp_pose);
+    // arm_node->plan_and_execute_to_pose_goal(preplace_pose);
+    // arm_node->plan_and_execute_to_pose_goal(start_pose, false);
     /* Cartesian path planning */
     std::vector<double> steps = {0.05, 0.0, 0.0};
     iterations = 1;
@@ -290,6 +555,12 @@ int main(int argc, char **argv)
     // arm_node->plan_and_execute_to_pose_goal(start_pose);
     // gripper_node->plan_and_execute_to_joint_space_goal(open_gripper);
     // gripper_node->plan_and_execute_to_joint_space_goal(close_gripper);
+
+    // arm_node->plan_and_execute_to_pose_goal(home_pose, false);
+    // arm_node->plan_and_execute_with_plane_equality_constraint(home_pose, plane_pose, {0.4, 0.0, 0.0});
+    // arm_node->plan_and_execute_with_line_equality_constraint(home_pose, line_pose, {0.4, 0.0, 0.0});
+
+    arm_node->plan_and_execute_with_box_constraint(home_pose, box_pose, {0.05, 0.23, 0.15});
 
     signal(SIGINT, exit_sig_handler);
 

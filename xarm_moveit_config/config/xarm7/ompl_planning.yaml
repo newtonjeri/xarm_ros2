@@ -123,6 +123,8 @@ planner_configs:
 
 xarm7:
   default_planner_config: RRTConnect
+  enforce_constrained_state_space: true
+  projection_evaluator: joints(joint1, joint2)
   planner_configs:
     - SBL
     - EST

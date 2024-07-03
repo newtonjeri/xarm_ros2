@@ -82,6 +82,7 @@ add_executable(task_plan_node src/task_node.cpp)
 ament_target_dependencies(
   task_plan_node
   "moveit_ros_planning_interface"
+  "moveit_visual_tools"
   "rclcpp"
 )
 

@@ -15,8 +15,14 @@ find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(xarm_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(boost_filesystem REQUIRED)
 
 
+find_package(Boost REQUIRED COMPONENTS filesystem)
+
+
+# include directories
+include_directories(${Boost_RERUIRED_DIRS})
 
 add_executable(goal_pose_planner_and_executor src/goal_pose_planner_and_executor.cpp)
 ament_target_dependencies(
@@ -86,6 +92,8 @@ ament_target_dependencies(
   "rclcpp"
 )
 
+target_link_libraries(task_plan_node ${Boost_LIBRARIES})
+
 add_executable(gripper_node src/gripper_node.cpp)
 ament_target_dependencies(
   gripper_node
@@ -104,16 +112,13 @@ install(
     gripper_node
   DESTINATION lib/${PROJECT_NAME})
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
+
+# Move folders to share
+install(
+  DIRECTORY
+    launch
+  DESTINATION 
+    share/${PROJECT_NAME} 
+)
 
 ament_package()

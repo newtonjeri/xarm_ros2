@@ -13,6 +13,14 @@
       <xacro:property name="end_tool_collision_filename" value="end_tool/collision/end_tool"/>
     </xacro:unless>
 
+    <material name="Wood">
+      <color rgba="0.55 0.27 0.07 1.0"/>
+    </material>
+
+    <material name="Wall">
+      <color rgba="0.98 0.97 0.95 1.0"/>
+    </material>
+
     <!-- load params and define property -->
     <xacro:property name="default_inertial_params_filename" value="xarm7_type7_HT_BR2"/>
     <xacro:if value="${inertial_params_filename != ''}">
@@ -37,11 +45,40 @@
         <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
         <geometry>
           <mesh filename="package://xarm_description/meshes/xarm7/visual/table_plane.stl" scale="0.0001 0.0001 0.0005"/>
-          <material name="Wood">
-            <color rgba="0.219 0.445 0.286 1.0"/>
-          <texture filename=""/>
-        </material>
         </geometry>
+        <material name="Wood"/>
+      </visual>
+      <collision>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://xarm_description/meshes/xarm7/visual/table_plane.stl" scale="0.0001 0.0001 0.0005"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}wall_plane_1">
+      <visual>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://xarm_description/meshes/xarm7/visual/table_plane.stl" scale="0.0001 0.0001 0.0005"/>
+        </geometry>
+        <material name="Wall"/>
+      </visual>
+      <collision>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://xarm_description/meshes/xarm7/visual/table_plane.stl" scale="0.0001 0.0001 0.0005"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}wall_plane_2">
+      <visual>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://xarm_description/meshes/xarm7/visual/table_plane.stl" scale="0.0001 0.0001 0.0005"/>
+        </geometry>
+        <material name="Wall"/>
       </visual>
       <collision>
         <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
@@ -52,9 +89,21 @@
     </link>
 
     <joint name="${prefix}link_base_table_plane_joint" type="fixed">
-      <origin xyz="0.6 -0.6 0.00" rpy="0.0 0.0 1.5708"/>
+      <origin xyz="0.6 -0.6 -0.01" rpy="0.0 0.0 1.5708"/>
       <parent link="world"/>
       <child link="${prefix}table_plane"/>
+    </joint>
+
+    <joint name="${prefix}link_base_wall_plane_1_joint" type="fixed">
+      <origin xyz="-0.3 -0.6 0.00" rpy="1.5708 0.0 1.5708"/>
+      <parent link="world"/>
+      <child link="${prefix}wall_plane_1"/>
+    </joint>
+
+    <joint name="${prefix}link_base_wall_plane_2_joint" type="fixed">
+      <origin xyz="-0.3 -0.6 0.6" rpy="1.5708 0.0 1.5708"/>
+      <parent link="world"/>
+      <child link="${prefix}wall_plane_2"/>
     </joint>
 
     <link name="${prefix}link_base">

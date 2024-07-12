@@ -4,14 +4,24 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 
 #include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #include <chrono>
+#include <boost/filesystem.hpp>
+
+
+namespace fs = boost::filesystem;
 
 using namespace std::chrono_literals;
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("Pick And Place");
 
-const double max_velocity_scaling_factor = 0.1;     // [move_group_interface] default is 0.1
+const double max_velocity_scaling_factor = 0.07;     // [move_group_interface] default is 0.1
 const double max_acceleration_scaling_factor = 0.1; // [move_group_interface] default is 0.1
+
+const int number_of_times = 2;
 
 geometry_msgs::msg::Pose current_pose;
 
@@ -20,12 +30,9 @@ class PickAndPlaceTask
 public:
     PickAndPlaceTask(
         rclcpp::Node::SharedPtr &node,
-        std::string &group_name) : node_(node)
+        std::string &group_name) : node_(node), tf_buffer_(node_->get_clock()), tf_listener_(tf_buffer_)
     {
         init(group_name);
-        // moveit_visual_tools = moveit_visual_tools::MoveItVisualTools{node_, "world", rviz_visual_tools::RVIZ_MARKER_TOPIC,
-        //                                       move_group->getRobotModel() };
-
         moveit_visual_tools_ = std::make_shared<moveit_visual_tools::MoveItVisualTools>(
             node_, "world", rviz_visual_tools::RVIZ_MARKER_TOPIC, move_group->getRobotModel());
     }
@@ -37,6 +44,11 @@ public:
         moveit_visual_tools_->deleteAllMarkers();
         moveit_visual_tools_->trigger();
     }
+
+    geometry_msgs::msg::Pose getFramePose(
+        const std::string &target_frame,
+        const std::string &base_frame,
+        const rclcpp::Time &time);
 
     // Method to initialise and setup the move group interfaces
     void init(const std::string &group_name);
@@ -51,10 +63,7 @@ public:
 
     // Method to generate and execute a cartesian path
     void plan_and_execute_cartesian_path(
-        const geometry_msgs::msg::Pose &start_pose,
-        std::vector<geometry_msgs::msg::Pose> &waypoints,
-        const double eef_step,
-        const double jump_threshold,
+        geometry_msgs::msg::Pose &start_pose,
         const int iterations,
         const std::vector<double> step);
 
@@ -68,7 +77,7 @@ public:
     void plan_and_execute_with_plane_equality_constraint(
         const geometry_msgs::msg::Pose start_pose,
         const geometry_msgs::msg::Pose target_pose,
-        rosidl_runtime_cpp::BoundedVector<double, 3UL, std::allocator<double>> line_dimensions,
+        rosidl_runtime_cpp::BoundedVector<double, 3UL, std::allocator<double>> plane_dimensions,
         const Eigen::Vector3d &normal,
         double distance);
 
@@ -76,6 +85,7 @@ public:
     void plan_and_execute_with_box_constraint(
         const geometry_msgs::msg::Pose start_pose,
         const geometry_msgs::msg::Pose target_pose,
+        const geometry_msgs::msg::Pose box_pose,
         rosidl_runtime_cpp::BoundedVector<double, 3UL, std::allocator<double>> box_dimensions);
 
     // Method to plan and execute an orientation constrained trajectory
@@ -99,13 +109,15 @@ private:
     rclcpp::Node::SharedPtr node_;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group;
     std::shared_ptr<moveit_visual_tools::MoveItVisualTools> moveit_visual_tools_;
+
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
 };
 
 void PickAndPlaceTask::init(const std::string &group_name)
 {
     move_group = std::make_shared<moveit::planning_interface::MoveGroupInterface>(node_, group_name);
 
-    // move_group->setEndEffectorLink("link_eef");
     RCLCPP_INFO(LOGGER, "Planning frame: %s", move_group->getPlanningFrame().c_str());
     RCLCPP_INFO(LOGGER, "End effector link: %s", move_group->getEndEffectorLink().c_str());
     move_group->setMaxVelocityScalingFactor(max_velocity_scaling_factor);
@@ -144,6 +156,7 @@ void PickAndPlaceTask::plan_and_execute_to_pose_goal(
 
 void PickAndPlaceTask::plan_and_execute_to_joint_space_goal(std::vector<double> &joint_values)
 {
+    reset_visualisation();
     bool success = move_group->setJointValueTarget(joint_values);
 
     if (!success)
@@ -166,37 +179,36 @@ void PickAndPlaceTask::plan_and_execute_to_joint_space_goal(std::vector<double> 
 }
 
 void PickAndPlaceTask::plan_and_execute_cartesian_path(
-    const geometry_msgs::msg::Pose &start_pose,
-    std::vector<geometry_msgs::msg::Pose> &waypoints,
-    const double eef_step,
-    const double jump_threshold,
+    geometry_msgs::msg::Pose &start_pose,
     const int iterations,
     const std::vector<double> step)
 {
-    waypoints.push_back(start_pose);
-    geometry_msgs::msg::Pose pose2 = start_pose;
-
+    std::vector<geometry_msgs::msg::Pose> waypoints;
+    RCLCPP_INFO(rclcpp::get_logger("move_group"), "x = %f, y = %f, z = %f, ox = %f, oy = %f, oz = %f, ow = %f",
+                start_pose.position.x, start_pose.position.y, start_pose.position.z, start_pose.orientation.x, start_pose.orientation.y, start_pose.orientation.z, start_pose.orientation.w);
+    // waypoints.push_back(start_pose);
     for (int i = 0; i < iterations; i++)
     {
-        pose2.position.x += step[0];
-        pose2.position.y += step[1];
-        pose2.position.z += step[2];
-        waypoints.push_back(pose2);
+        start_pose.position.x += step[0];
+        start_pose.position.y += step[1];
+        start_pose.position.z += step[2];
+        waypoints.push_back(start_pose);
     }
-
+    RCLCPP_INFO(rclcpp::get_logger("move_group"), "x = %f, y = %f, z = %f, ox = %f, oy = %f, oz = %f, ow = %f",
+                start_pose.position.x, start_pose.position.y, start_pose.position.z, start_pose.orientation.x, start_pose.orientation.y, start_pose.orientation.z, start_pose.orientation.w);
     // Define trajectory for the approach
     moveit_msgs::msg::RobotTrajectory trajectory_approach;
     // Compute the Cartesian path for the approach
-    double fraction = move_group->computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory_approach);
+    double fraction = move_group->computeCartesianPath(waypoints, 0.005, 0.0, trajectory_approach);
     if (fraction < 0.90)
     {
         RCLCPP_WARN(rclcpp::get_logger("move_group"), "Cartesian path for approach not fully planned, fraction: %f", fraction);
-    }
+    }   
 
     // Execute the approach trajectory
     move_group->execute(trajectory_approach);
-    current_pose = pose2;
-}
+    current_pose = start_pose;
+   }
 
 void PickAndPlaceTask::plan_and_execute_with_line_equality_constraint(
     const geometry_msgs::msg::Pose start_pose,
@@ -260,7 +272,7 @@ void PickAndPlaceTask::plan_and_execute_with_line_equality_constraint(
 void PickAndPlaceTask::plan_and_execute_with_plane_equality_constraint(
     const geometry_msgs::msg::Pose start_pose,
     const geometry_msgs::msg::Pose target_pose,
-    rosidl_runtime_cpp::BoundedVector<double, 3UL, std::allocator<double>> line_dimensions,
+    rosidl_runtime_cpp::BoundedVector<double, 3UL, std::allocator<double>> plane_dimensions,
     const Eigen::Vector3d &normal,
     double distance)
 
@@ -275,7 +287,7 @@ void PickAndPlaceTask::plan_and_execute_with_plane_equality_constraint(
     // Define the plane as a very thin box
     shape_msgs::msg::SolidPrimitive plane;
     plane.type = shape_msgs::msg::SolidPrimitive::BOX;
-    plane.dimensions = line_dimensions;
+    plane.dimensions = plane_dimensions;
     plane_constraint.constraint_region.primitives.emplace_back(plane);
 
     // Add the pose for the plane constraint
@@ -322,28 +334,38 @@ void PickAndPlaceTask::plan_and_execute_with_plane_equality_constraint(
 void PickAndPlaceTask::plan_and_execute_with_box_constraint(
     const geometry_msgs::msg::Pose start_pose,
     const geometry_msgs::msg::Pose target_pose,
+    const geometry_msgs::msg::Pose box_pose_,
     rosidl_runtime_cpp::BoundedVector<double, 3UL, std::allocator<double>> box_dimensions)
 {
     // Clear path constraints after planning and execution
     reset_visualisation();
 
+    // Determine the box constraints to be used by checking th target pos
+    if(target_pose.position.z - start_pose.position.z > 0.05 || target_pose.position.z - start_pose.position.z < -0.05){
+        box_dimensions[0] = 0.5;
+        // box_dimensions[1] = 0.5;
+        box_dimensions[2] = 0.5;
+    }
+    geometry_msgs::msg::Pose box_pose = getFramePose("link3", "world", rclcpp::Time(0));
+
     moveit_msgs::msg::PositionConstraint box_constraint;
     box_constraint.header.frame_id = move_group->getPoseReferenceFrame();
-    box_constraint.link_name = move_group->getEndEffectorLink();
+    // box_constraint.link_name = move_group->getEndEffectorLink();
+    box_constraint.link_name = "link3";
 
     shape_msgs::msg::SolidPrimitive box;
     box.type = shape_msgs::msg::SolidPrimitive::BOX;
     box.dimensions = box_dimensions;
     box_constraint.constraint_region.primitives.emplace_back(box);
 
-    box_constraint.constraint_region.primitive_poses.emplace_back(target_pose);
+    box_constraint.constraint_region.primitive_poses.emplace_back(box_pose);
     box_constraint.weight = 1.0;
 
     // Visualize the box constraint
-    Eigen::Vector3d box_point_1(start_pose.position.x - box.dimensions[0] / 2, start_pose.position.y - box.dimensions[1] / 2,
-                                start_pose.position.z - box.dimensions[2] / 2);
-    Eigen::Vector3d box_point_2(start_pose.position.x + box.dimensions[0] / 2, start_pose.position.y + box.dimensions[1] / 2,
-                                start_pose.position.z + box.dimensions[2] / 2);
+    Eigen::Vector3d box_point_1(box_pose.position.x - box.dimensions[0] / 2, box_pose.position.y - box.dimensions[1] / 2,
+                                box_pose.position.z - box.dimensions[2] / 2);
+    Eigen::Vector3d box_point_2(box_pose.position.x + box.dimensions[0] / 2, box_pose.position.y + box.dimensions[1] / 2,
+                                box_pose.position.z + box.dimensions[2] / 2);
     moveit_visual_tools_->publishCuboid(box_point_1, box_point_2, rviz_visual_tools::TRANSLUCENT_DARK);
     moveit_visual_tools_->trigger();
 
@@ -369,7 +391,7 @@ void PickAndPlaceTask::plan_and_execute_with_box_constraint(
     if (success)
     {
         move_group->execute(plan);
-        current_pose = target;
+        current_pose = target_pose;
     }
     else
     {
@@ -443,6 +465,80 @@ void PickAndPlaceTask::visualize_plane(const Eigen::Vector3d &normal, double dis
     moveit_visual_tools_->trigger();
 }
 
+geometry_msgs::msg::Pose PickAndPlaceTask::getFramePose(
+    const std::string& target_frame,
+    const std::string& base_frame,
+    const rclcpp::Time& time = rclcpp::Time(0)
+){
+    geometry_msgs::msg::Pose pose;
+    try{
+        // Lookup the transform from target_frame to base_frame
+        geometry_msgs::msg::TransformStamped transform_stamped = tf_buffer_.lookupTransform(
+                                                                                base_frame, 
+                                                                                target_frame, 
+                                                                                time, 
+                                                                                tf2::durationFromSec(1.0));
+
+        // Extraact the translation and rotation
+        pose.position.x = transform_stamped.transform.translation.x;
+        pose.position.y = transform_stamped.transform.translation.y;
+        pose.position.z = transform_stamped.transform.translation.z;
+        pose.orientation = transform_stamped.transform.rotation;
+    }
+    catch(tf2::TransformException &ex)
+    {
+
+        RCLCPP_WARN(LOGGER, "Could not transform %s to %s: %s", target_frame.c_str(), base_frame.c_str(), ex.what());
+    }
+    return pose;
+}
+
+std::string getCurrentTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%m/%d/%Y %H:%M:%S");
+    ss << '.' << std::setw(3) << std::setfill('0') << milliseconds.count();
+    return ss.str();
+}
+
+std::string getFilename() {
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    std::stringstream ss;
+    ss << "data/log_" << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S") << milliseconds.count() << ".csv";
+    return ss.str();
+}
+
+void saveToCSV(std::string filename, std::string cycle) {
+    // Ensure the data directory exists
+    fs::create_directory("data");
+    std::ofstream csvfile;
+
+    // Check if file exists and open in append mode if it does
+    if (fs::exists(filename)) {
+        csvfile.open(filename, std::ios::app);
+    } else {
+        csvfile.open(filename);
+        csvfile << "Cycle start Time" << std::endl; // Write the header if the file is new
+    }
+
+    if (!csvfile.is_open()) {
+        std::cerr << "Error: Unable to open file for writing." << std::endl;
+        return;
+    }
+
+    std::string timestamp = getCurrentTimestamp();
+    csvfile << cycle << ". "<<timestamp << std::endl;
+
+    csvfile.close();
+    std::cout << "Data saved to " << filename << std::endl;
+}
+
 void exit_sig_handler([[maybe_unused]] int signum)
 {
     fprintf(stderr, "[pick_and_place_node] Ctrl+C cought, exit process...\n");
@@ -471,7 +567,7 @@ int main(int argc, char **argv)
     // Arm group object
     auto arm_node = std::make_shared<PickAndPlaceTask>(node, ARM_GROUP);
     // gripper group object
-    // auto gripper_node = std::make_shared<PickAndPlaceTask>(node, GRIPPER_GROUP);
+    auto gripper_node = std::make_shared<PickAndPlaceTask>(node, GRIPPER_GROUP);
 
     /* Joint Space targets */
     // std::vector<double> home_joint_values = {0.0, 0.0, 0.0, 0.0, 0.0, -1.570796, 0.0};
@@ -479,52 +575,65 @@ int main(int argc, char **argv)
     std::vector<double> wg_home_joint_values = {0.0, 0.0, 0.0, 0.0, 0.0, -1.570796};
     // std::vector<double> joint_values_1 = {1.0, 0.0, 0.0, 0.0, 0.0, -1.57, 0.0};
 
-    // std::vector<double> pregrasp_joint_values = {0.0, -0.174533, -0.830777, 0.589921, -0.232129, 0.710349, -0.614357};
-    // std::vector<double> preplace_joint_values = {0.169297, 0.143117, 0.647517, 0.757473, -0.073304, 0.612611, 0.801106};
+    std::vector<double> pregrasp_joint_values = {0.0, -0.174533, -0.830777, 0.589921, -0.232129, 0.710349, -0.614357};
+    std::vector<double> preplace_joint_values = {0.169297, 0.143117, 0.647517, 0.757473, -0.073304, 0.612611, 0.801106};
     std::vector<double> open_gripper = {0.2};
-    std::vector<double> close_gripper = {849.914};
+    std::vector<double> close_gripper = {0.84};
 
-    auto end_pose = []
+    auto link3_home_pose = []
     {
         geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.13;
-        msg.position.y = -0.10;
-        msg.position.z = 0.2935;
-        msg.orientation.x = 0.707107;
+        msg.position.x = 0.0;
+        msg.position.y = 0.0;
+        msg.position.z = 0.56;
+        msg.orientation.x = 0.0;
         msg.orientation.y = 0.0;
-        msg.orientation.z = 0.707107;
-        msg.orientation.w = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
         return msg;
     }();
 
     auto pregrasp_pose = []
     {
         geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.3699;
-        msg.position.y = -0.2698;
-        msg.position.z = 0.1381;
-        msg.orientation.x = 0.7106;
-        msg.orientation.y = -0.7031;
-        msg.orientation.z = 0.0256;
-        msg.orientation.w = 0.0;
+        msg.position.x = 0.310;
+        msg.position.y = -0.2260;
+        msg.position.z = 0.1000;
+        msg.orientation.x = 1.0;
+        msg.orientation.y = 0.0193;
+        msg.orientation.z = -0.0045;
+        msg.orientation.w = -0.0100;
         return msg;
     }();
 
     auto preplace_pose = []
     {
         geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.1;
-        msg.position.y = 0.3372;
-        msg.position.z = 0.1374;
-        // msg.orientation.x = 1.0;
-        // msg.orientation.y = -0.0291;
-        // msg.orientation.z = 0.0142;
-        // msg.orientation.w = -0.021;
-        msg.orientation.x = 0.707107;
-        msg.orientation.y = 0.0;
-        msg.orientation.z = 0.707107;
-        msg.orientation.w = 0.0;
+        msg.position.x = 0.310;
+        msg.position.y = 0.2660;
+        msg.position.z = 0.1000;
+        msg.orientation.x = 1.0;
+        msg.orientation.y = 0.0193;
+        msg.orientation.z = -0.0045;
+        msg.orientation.w = -0.0100;
+        // msg.orientation.x = 0.707107;
+        // msg.orientation.y = 0.0;
+        // msg.orientation.z = 0.707107;
+        // msg.orientation.w = 0.0;
 
+        return msg;
+    }();
+
+        auto target_poseC = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.0;
+        msg.position.y = 0.5;
+        msg.position.z = 0.1;
+        msg.orientation.x = 1.0;
+        msg.orientation.y = 0.0193;
+        msg.orientation.z = -0.0045;
+        msg.orientation.w = -0.0100;
         return msg;
     }();
 
@@ -581,18 +690,7 @@ int main(int argc, char **argv)
         return msg;
     }();
 
-    auto ee_pose = []
-    {
-        geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.0;
-        msg.position.y = 0.0;
-        msg.position.z = 0.0;
-        msg.orientation.x = 0.0;
-        msg.orientation.y = 0.0;
-        msg.orientation.z = 0.0;
-        msg.orientation.w = 1.0;
-        return msg;
-    }();
+
     // /////////////////////////////////////////////////////////////////////////////////////
 
     auto home_pose = []
@@ -611,7 +709,7 @@ int main(int argc, char **argv)
     auto move_x_pose = []
     {
         geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.599;
+        msg.position.x = 0.659;
         msg.position.y = 0.0;
         msg.position.z = 0.2935;
         msg.orientation.x = 0.707107;
@@ -639,7 +737,7 @@ int main(int argc, char **argv)
         geometry_msgs::msg::Pose msg;
         msg.position.x = 0.399;
         msg.position.y = 0.0;
-        msg.position.z = 0.5935;
+        msg.position.z = 0.45;
         msg.orientation.x = 0.707107;
         msg.orientation.y = 0.0;
         msg.orientation.z = 0.707107;
@@ -650,9 +748,9 @@ int main(int argc, char **argv)
     auto move_xy_pose = []
     {
         geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.499;
-        msg.position.y = 0.3;
-        msg.position.z = 0.5;
+        msg.position.x = 0.399;
+        msg.position.y = -0.3;
+        msg.position.z = 0.2935;
         msg.orientation.x = 0.707107;
         msg.orientation.y = 0.0;
         msg.orientation.z = 0.707107;
@@ -686,11 +784,11 @@ int main(int argc, char **argv)
         return msg;
     }();
     /* Waypoints */
-    std::vector<geometry_msgs::msg::Pose> waypoints;
-    /* Cartesian path planning */
-    std::vector<double> steps = {0.05, 0.0, 0.0};
-    iterations = 1;
-    // arm_node->plan_and_execute_cartesian_path(start_pose, waypoints, eef_step, jump_threshold, iterations, steps);
+    // std::vector<geometry_msgs::msg::Pose> waypoints;
+    // /* Cartesian path planning */
+    // std::vector<double> steps = {0.05, 0.0, 0.0};
+    // iterations = 1;
+    // arm_node->plan_and_execute_cartesian_path(home_pose, waypoints, eef_step, jump_threshold, iterations, steps);
 
     // arm_node->plan_and_execute_to_joint_space_goal(home_joint_values);
     // gripper_node->plan_and_execute_to_joint_space_goal(close_gripper);
@@ -711,8 +809,8 @@ int main(int argc, char **argv)
     // // Move to home position
     // arm_node->plan_and_execute_to_joint_space_goal(home_joint_values);
 
-    // arm_node->plan_and_execute_to_pose_goal(start_pose);
-    // gripper_node->plan_and_execute_to_joint_space_goal(open_gripper);
+    // arm_node->plan_and_execute_to_pose_goal(home_pose, false);
+    // gripper_node->plan_and_execute_to_joint_space_goal(open_gripper); 
     // gripper_node->plan_and_execute_to_joint_space_goal(close_gripper);
 
     /* Line Constraint test */
@@ -732,6 +830,57 @@ int main(int argc, char **argv)
     /* Orientation Constraint test */
     // arm_node->plan_and_execute_with_line_equality_constraint(home_pose,start_pose, {0.0005, 0.0005, 1.0});
     // arm_node->plan_and_execute_with_line_equality_constraint(home_pose,move_y_pose, {0.0005, 1.0, 0.0005});
+    // std::string filename_ = getFilename();
+    // for (int i = 0; i < number_of_times; i++)
+    // {
+    //     /* Line Constraint test */
+    //     RCLCPP_INFO(LOGGER, "PLANNING AND EXECUTING TO A TARGET ATTEMPT - %d", i+1);
+    //     // saveToCSV(filename_, std::to_string(i+1));
+    //     // arm_node->plan_and_execute_with_line_equality_constraint(home_pose, move_x_pose, {0.0005, 0.0005, 1.0});
+    //     // arm_node->plan_and_execute_with_plane_equality_constraint(home_pose, move_x_pose, {0.0005, 1.0, 1.0}, {0, 0, 1}, move_x_pose.position.z);
+    //     arm_node->plan_and_execute_with_box_constraint(home_pose, move_xyz_pose, link3_home_pose, {0.3, 0.3, 0.3});
+    //     arm_node->plan_and_execute_to_joint_space_goal(home_joint_values);
+    // }
+
+    /* TASK */
+    // Make sure the robot is at home pose
+    arm_node->plan_and_execute_to_joint_space_goal(home_joint_values);
+    RCLCPP_INFO(LOGGER, "Robot At Home POSE - 1");
+    // Move to top of picking position
+    arm_node->plan_and_execute_with_box_constraint(home_pose, pregrasp_pose, link3_home_pose, {0.2, 0.2, 0.2});
+    RCLCPP_INFO(LOGGER, "Robot At top of Picking POSE - 2");
+    // Move to picking position via cartesian path planning
+    /* Cartesian path planning */
+    // std::vector<double> steps = {0.0, 0.0, -0.05};
+    // iterations = 1;
+    // arm_node->plan_and_execute_cartesian_path(pregrasp_pose, iterations, steps);
+    // // Move retreat from picking position using cartesian path planning
+    // steps = {0.0, 0.0, 0.0};
+    // arm_node->plan_and_execute_cartesian_path(current_pose, iterations, steps);
+
+    // Move to top of placing position with constrained orientation
+    arm_node->plan_and_execute_with_box_constraint(current_pose, preplace_pose, link3_home_pose, {0.2, 0.2, 0.2});
+    RCLCPP_INFO(LOGGER, "Robot At top of Placing POSE - 3");
+
+    // Move back to top of picking position
+    arm_node->plan_and_execute_with_box_constraint(current_pose, pregrasp_pose, link3_home_pose, {0.2, 0.2, 0.2});
+    RCLCPP_INFO(LOGGER, "Robot At top of Picking POSE - 4");
+
+    // Move to top of placing position with constrained orientation
+    arm_node->plan_and_execute_with_box_constraint(current_pose, target_poseC, link3_home_pose, {0.2, 0.2, 0.2});
+    RCLCPP_INFO(LOGGER, "Robot At top POSE A - 5");
+
+    // Move back to top of picking position
+    arm_node->plan_and_execute_with_box_constraint(current_pose, pregrasp_pose, link3_home_pose, {0.2, 0.2, 0.2});
+    RCLCPP_INFO(LOGGER, "Robot At top of Picking POSE - 6");
+    // // Move to placing position with cartesian path
+    // steps = {0.02, 0.0, 0.0};
+    // iterations = 1;
+    // arm_node->plan_and_execute_cartesian_path(preplace_pose, iterations, steps);
+    // // Move retreat from picking position using cartesian path planning
+    // steps = {-0.02, 0.0, 0.05};
+    // arm_node->plan_and_execute_cartesian_path(current_pose, iterations, steps);
+    // Move to home position
     arm_node->plan_and_execute_to_joint_space_goal(home_joint_values);
     signal(SIGINT, exit_sig_handler);
 

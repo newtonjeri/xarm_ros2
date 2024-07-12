@@ -107,7 +107,7 @@ class JointStatesSubscriberNode(Node):
                          joint_info_msg.velocities, self.time_data_sent, \
                          self.frame_time)
                         
-        self.get_logger().info("Published joint names and positions")
+        # self.get_logger().info("Published joint names and positions")
 
 
 

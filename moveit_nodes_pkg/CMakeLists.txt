@@ -24,6 +24,11 @@ find_package(Boost REQUIRED COMPONENTS filesystem)
 # include directories
 include_directories(${Boost_RERUIRED_DIRS})
 
+include_directories(
+  include
+  ${ament_INCLUDE_DIRS}
+)
+
 add_executable(goal_pose_planner_and_executor src/goal_pose_planner_and_executor.cpp)
 ament_target_dependencies(
   goal_pose_planner_and_executor
@@ -101,6 +106,18 @@ ament_target_dependencies(
   "rclcpp"
 )
 
+add_executable(cartesian_path_node src/cartesian_path_planning_test.cpp)
+ament_target_dependencies(
+  cartesian_path_node
+  "moveit_ros_planning_interface"
+  "rclcpp"
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
 install(
   TARGETS 
     goal_pose_planner_and_executor
@@ -110,7 +127,12 @@ install(
     unity_subscriber_cpp_node
     task_plan_node
     gripper_node
-  DESTINATION lib/${PROJECT_NAME})
+    cartesian_path_node
+    
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
 
 
 # Move folders to share
@@ -120,5 +142,7 @@ install(
   DESTINATION 
     share/${PROJECT_NAME} 
 )
+
+
 
 ament_package()

@@ -101,7 +101,7 @@
     </joint>
 
     <joint name="${prefix}link_base_wall_plane_2_joint" type="fixed">
-      <origin xyz="-0.3 -0.6 0.6" rpy="1.5708 0.0 1.5708"/>
+      <origin xyz="-0.3 -0.6 0.705" rpy="1.5708 0.0 1.5708"/>
       <parent link="world"/>
       <child link="${prefix}wall_plane_2"/>
     </joint>
@@ -199,8 +199,8 @@
       </xacro:if>
       <!-- if on simulation yaw = 1.5706 -->
       <xacro:unless value = "${robot_ip == '192.1.168.225'}">
-        <origin xyz="0 0 0" rpy="1.5708 1.5708 0" />
-        <!-- <xacro:common_joint_origin joint_kinematic_params="${kinematics_params['joint6']}" /> -->
+        <!-- <origin xyz="0 0 0" rpy="1.5708 1.5708 0" /> -->
+        <xacro:common_joint_origin joint_kinematic_params="${kinematics_params['joint6']}" />
       </xacro:unless>
       <parent link="${prefix}link5" />
       <child link="${prefix}link6" />

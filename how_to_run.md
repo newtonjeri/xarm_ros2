@@ -3,10 +3,31 @@
 
 ## Overview
 
-This file contains the procedure for running the real xarm7 robot arm
+This file contains the procedure for running the real and simulated xarm7 robot arm either using bash scripts or by manually inputing commands (for real only)
+
+## A. Using bash scripts
+When using bash scripts to run the arm a prompt requesting the ROS_IP argument, which is the IP address of the machine running ROS2 appears, use this command to get the IP address
+```bash 
+hostname -I
+```
+### run simulated xarm7
+```bash
+# Navigate to the shared folder
+cd /home/shared_folder/;
+# Execute the script to run simulated xarm7
+./run_xarm7_simulation.sh 
+```
+
+### run real xarm7
+```bash
+# Navigate to the shared folder
+cd /home/shared_folder/;
+# Execute the script to run simulated xarm7
+./run_xarm7_real.sh 
+```
 
 
-## Procedure to run the project
+## B. Procedure to run the project inputing commands manually
 1. Open terminal and paste the below commands to navigate to the root folder of the workspace and run the ros2 tcp endpoint to connect to unity
 ```bash
 # Navigate to the root of the workspace 

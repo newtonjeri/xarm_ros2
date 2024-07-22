@@ -1,0 +1,223 @@
+    auto link3_home_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.0;
+        msg.position.y = 0.0;
+        msg.position.z = 0.56;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
+    auto intermediate_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.2724;
+        msg.position.y = 0.4455;
+        msg.position.z = 0.1;
+        msg.orientation.x = 1.0;
+        msg.orientation.y = 0.0193;
+        msg.orientation.z = -0.0045;
+        msg.orientation.w = -0.0100;
+        return msg;
+    }();
+
+    auto link4_home_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.1;
+        msg.position.y = -0.08;
+        msg.position.z = 0.50;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
+    auto pregrasp_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.310;
+        msg.position.y = -0.2260;
+        msg.position.z = 0.1000;
+        msg.orientation.x = 1.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto preplace_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.310;
+        msg.position.y = 0.2660;
+        msg.position.z = 0.1000;
+        msg.orientation.x = 0.98423;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.17689;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto target_poseC = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.0;
+        msg.position.y = 0.5;
+        msg.position.z = 0.1;
+        msg.orientation.x = 1.0;
+        msg.orientation.y = 0.0193;
+        msg.orientation.z = -0.0045;
+        msg.orientation.w = -0.0100;
+        return msg;
+    }();
+
+    auto box_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.45;
+        msg.position.y = 0.0;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
+    /* Perpendicular to Z axis */
+    auto plane_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.399;
+        msg.position.y = 0.0;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
+    auto line_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.227;
+        msg.position.y = 0.0;
+        msg.position.z = 0.294;
+        msg.orientation.x = 0.0;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.0;
+        msg.orientation.w = 1.0;
+        return msg;
+    }();
+
+    auto wg_home_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.227;
+        msg.position.y = 0.0;
+        msg.position.z = 0.294;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    // /////////////////////////////////////////////////////////////////////////////////////
+
+    auto home_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.399;
+        msg.position.y = 0.0;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto move_x_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.49;
+        msg.position.y = 0.0;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto move_y_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.399;
+        msg.position.y = 0.3;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto move_z_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.399;
+        msg.position.y = 0.0;
+        msg.position.z = 0.45;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto move_xy_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.399;
+        msg.position.y = -0.3;
+        msg.position.z = 0.2935;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto move_xy_home = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.499;
+        msg.position.y = 0.0;
+        msg.position.z = 0.5;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();
+
+    auto move_xyz_pose = []
+    {
+        geometry_msgs::msg::Pose msg;
+        msg.position.x = 0.2;
+        msg.position.y = 0.2;
+        msg.position.z = 0.2;
+        msg.orientation.x = 0.707107;
+        msg.orientation.y = 0.0;
+        msg.orientation.z = 0.707107;
+        msg.orientation.w = 0.0;
+        return msg;
+    }();

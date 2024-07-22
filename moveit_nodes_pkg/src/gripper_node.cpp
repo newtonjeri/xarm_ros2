@@ -9,8 +9,6 @@ int main(int argc, char **argv){
     rclcpp::NodeOptions node_options;
     node_options.automatically_declare_parameters_from_overrides(true);
 
-
-
     auto const node = std::make_shared<rclcpp::Node>("gripper_node", node_options);
     std::string group_name = "xarm_gripper";
     // Move group interface 
@@ -19,11 +17,11 @@ int main(int argc, char **argv){
     RCLCPP_INFO(LOGGER, "Planning frame: %s", gripper_group.getPlanningFrame().c_str());
     RCLCPP_INFO(LOGGER, "End effector link: %s", gripper_group.getEndEffectorLink().c_str());
 
-    double gripper_open_joint_value = 0;
-    double gripper_close_joint_value = 0.8;
+    std::vector<double> gripper_open_joint_value(6, 0);
+    std::vector<double> gripper_close_joint_value(6, 0.84);
 
     // Open gripper
-    gripper_group.setJointValueTarget({gripper_open_joint_value});
+    gripper_group.setJointValueTarget(gripper_open_joint_value);
 
     auto const [success, plan] = [&gripper_group]{
         moveit::planning_interface::MoveGroupInterface::Plan msg;
@@ -36,7 +34,7 @@ int main(int argc, char **argv){
     }
 
     // Close gripper
-    gripper_group.setJointValueTarget({gripper_close_joint_value});
+    gripper_group.setJointValueTarget(gripper_close_joint_value);
 
     auto const [success_, plan_] = [&gripper_group]{
         moveit::planning_interface::MoveGroupInterface::Plan msg;

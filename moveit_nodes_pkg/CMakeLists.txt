@@ -10,6 +10,8 @@ find_package(ament_cmake REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_visual_tools REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
@@ -113,6 +115,28 @@ ament_target_dependencies(
   "rclcpp"
 )
 
+
+# Server installation Setup
+add_library(voice_command_server SHARED src/voice_command_server.cpp)
+target_include_directories(
+  voice_command_server 
+  PRIVATE "voice_command_server_CPP_BUILDING_DLL"
+)
+ament_target_dependencies(
+  voice_command_server
+    "rclcpp"
+    "rclcpp_action"
+    "rclcpp_components"
+    "xarm_msgs"
+    "moveit_ros_planning_interface"
+  )
+
+rclcpp_components_register_node(
+  voice_command_server
+    PLUGIN "voice_command::VoiceCommandServer"
+    EXECUTABLE voice_command_server_node
+)
+
 install(
   DIRECTORY include/
   DESTINATION include
@@ -128,11 +152,17 @@ install(
     task_plan_node
     gripper_node
     cartesian_path_node
-    
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  DESTINATION 
+    lib/${PROJECT_NAME}
   )
+
+install(
+  TARGETS
+    voice_command_server
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
 
 
 # Move folders to share

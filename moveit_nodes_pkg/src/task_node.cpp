@@ -535,9 +535,9 @@ int main(int argc, char **argv)
     const auto pregrasp_pose = []
     {
         geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.310;
-        msg.position.y = -0.2260;
-        msg.position.z = 0.2000;
+        msg.position.x = 0.3641;
+        msg.position.y = -0.3217;
+        msg.position.z = 0.2124;
         msg.orientation.x = 1.0;
         msg.orientation.y = 0.0;
         msg.orientation.z = 0.0;
@@ -548,9 +548,9 @@ int main(int argc, char **argv)
     const auto preplace_pose = []
     {
         geometry_msgs::msg::Pose msg;
-        msg.position.x = 0.310;
-        msg.position.y = 0.2660;
-        msg.position.z = 0.2000;
+        msg.position.x = 0.3489;
+        msg.position.y = 0.3391;
+        msg.position.z = 0.2133;
         msg.orientation.x = 1.0;
         msg.orientation.y = 0.0;
         msg.orientation.z = 0.0;

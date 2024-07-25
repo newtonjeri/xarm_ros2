@@ -1,4 +1,10 @@
 #! /usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from rclpy.action import ActionClient
+import threading
+
+from xarm_msgs.action import VoiceCommand
 
 from flask import Flask
 from ask_sdk_core.skill_builder import SkillBuilder
@@ -10,7 +16,10 @@ from ask_sdk_model import Response
 from ask_sdk_model.ui import SimpleCard
 from ask_sdk_core.dispatch_components import AbstractExceptionHandler
 
-SKILL_ID = "amzn1.ask.skill.69ca8127-a5cd-42dc-a6d9-678458113fe4"
+threading.Thread(target=lambda: rclpy.init()).start()
+action_client = ActionClient(Node("alexa_interface_node"), VoiceCommand, "voice_command_server")
+
+SKILL_ID = "amzn1.ask.skill.7836951c-8a46-4bca-a028-4fb850ae7ef9"
 
 app = Flask(__name__)
 
@@ -20,34 +29,44 @@ class LaunchRequestHandler(AbstractRequestHandler):
         return is_request_type("LaunchRequest")(handler_input)
 
     def handle(self, handler_input):
+        print("Got LaunchRequest - %s" % str(handler_input))
         # type: (HandlerInput) -> Response
         speech_text = "x arm seven robot arm is ready to receive commands!"
 
         handler_input.response_builder.speak(speech_text).set_card(
             SimpleCard("Hello World", speech_text)).set_should_end_session(
             False)
+        
+        goal = VoiceCommand.Goal()
+        goal.task_code = 0
+        action_client.send_goal_async(goal)
         return handler_input.response_builder.response
     
 
-
 class MoveHomeIntentHandler(AbstractRequestHandler):
+    launchRequestHandler = LaunchRequestHandler()
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
         return is_intent_name("MoveHomeIntent")(handler_input)
 
     def handle(self, handler_input):
         # type: (HandlerInput) -> Response
-        speech_text = "xarm seven robot arm moving to home pose"
+        speech_text = "x arm seven robot arm moving to home pose"
 
         handler_input.response_builder.speak(speech_text).set_card(
             SimpleCard("MoveHome", speech_text)).set_should_end_session(
             True)
+        
+        goal = VoiceCommand.Goal()
+        goal.task_code = 1
+        action_client.send_goal_async(goal)
         return handler_input.response_builder.response
     
-class PickingIntentHandler(AbstractRequestHandler):
+    
+class PickIntentHandler(AbstractRequestHandler):
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
-        return is_intent_name("PickingIntent")(handler_input)
+        return is_intent_name("PickIntent")(handler_input)
 
     def handle(self, handler_input):
         # type: (HandlerInput) -> Response
@@ -56,13 +75,17 @@ class PickingIntentHandler(AbstractRequestHandler):
         handler_input.response_builder.speak(speech_text).set_card(
             SimpleCard("Picking", speech_text)).set_should_end_session(
             True)
+        goal = VoiceCommand.Goal()
+        goal.task_code = 2
+        action_client.send_goal_async(goal)
+
         return handler_input.response_builder.response
     
 
-class PlacingIntentHandler(AbstractRequestHandler):
+class PlacIntentHandler(AbstractRequestHandler):
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
-        return is_intent_name("PlacingIntent")(handler_input)
+        return is_intent_name("PlacIntent")(handler_input)
 
     def handle(self, handler_input):
         # type: (HandlerInput) -> Response
@@ -71,8 +94,12 @@ class PlacingIntentHandler(AbstractRequestHandler):
         handler_input.response_builder.speak(speech_text).set_card(
             SimpleCard("Placing", speech_text)).set_should_end_session(
             True)
+        goal = VoiceCommand.Goal()
+        goal.task_code = 2
+        action_client.send_goal_async(goal)
         return handler_input.response_builder.response
     
+
 class OpenGripperIntentHandler(AbstractRequestHandler):
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
@@ -85,8 +112,12 @@ class OpenGripperIntentHandler(AbstractRequestHandler):
         handler_input.response_builder.speak(speech_text).set_card(
             SimpleCard("OpenGripper", speech_text)).set_should_end_session(
             True)
+        goal = VoiceCommand.Goal()
+        goal.task_code = 4
+        action_client.send_goal_async(goal)
         return handler_input.response_builder.response
     
+
 class CloseGripperIntentHandler(AbstractRequestHandler):
     def can_handle(self, handler_input):
         # type: (HandlerInput) -> bool
@@ -99,6 +130,9 @@ class CloseGripperIntentHandler(AbstractRequestHandler):
         handler_input.response_builder.speak(speech_text).set_card(
             SimpleCard("CloseGripper", speech_text)).set_should_end_session(
             True)
+        goal = VoiceCommand.Goal()
+        goal.task_code = 5
+        action_client.send_goal_async(goal)
         return handler_input.response_builder.response
     
 
@@ -121,8 +155,8 @@ class AllExceptionHandler(AbstractExceptionHandler):
 skill_builder = SkillBuilder()
 skill_builder.add_request_handler(LaunchRequestHandler())
 skill_builder.add_request_handler(MoveHomeIntentHandler())
-skill_builder.add_request_handler(PickingIntentHandler())
-skill_builder.add_request_handler(PlacingIntentHandler())
+skill_builder.add_request_handler(PickIntentHandler())
+skill_builder.add_request_handler(PlacIntentHandler())
 skill_builder.add_request_handler(OpenGripperIntentHandler())
 skill_builder.add_request_handler(CloseGripperIntentHandler())
 skill_builder.add_exception_handler(AllExceptionHandler())

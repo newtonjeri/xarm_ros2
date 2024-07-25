@@ -106,14 +106,14 @@ set(srv_files
   ${srv_dir}/MoverService.srv
 )
 
-# set(active_files
-#   "action/GripperMove.action"
-# )
+set(action_files
+  "action/VoiceCommand.action"
+)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
-  # ${active_files}
+  ${action_files}
   DEPENDENCIES std_msgs geometry_msgs moveit_msgs
 )
 

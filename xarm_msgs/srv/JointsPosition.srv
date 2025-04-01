@@ -1,0 +1,6 @@
+# Request
+# Float array of joint positions in radians with index 0 being the joint1 position, index 1 being the joint2 position, etc.
+float64[] joint_positions
+---
+# Response
+bool success

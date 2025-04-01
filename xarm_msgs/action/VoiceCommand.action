@@ -1,0 +1,10 @@
+# Goal
+int32 task_code
+
+---
+# Result
+bool success
+
+---
+# Fedback
+int32 progress_percent

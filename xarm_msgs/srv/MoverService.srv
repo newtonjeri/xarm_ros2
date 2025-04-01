@@ -1,0 +1,6 @@
+xarm_msgs/Xarm7MoveitJoints joints_input
+geometry_msgs/Pose pick_pose
+geometry_msgs/Pose place_pose
+geometry_msgs/Vector3 robot_arm_rotation
+---
+moveit_msgs/RobotTrajectory[] trajectories

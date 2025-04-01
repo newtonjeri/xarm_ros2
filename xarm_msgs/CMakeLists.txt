@@ -34,6 +34,7 @@ endif()
 
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(moveit_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 set(msg_files
@@ -41,10 +42,25 @@ set(msg_files
   "msg/IOState.msg"
   "msg/CIOState.msg"
   "msg/MoveVelocity.msg"
+  "msg/JointNamesAndAngles.msg"
+  "msg/Xarm7MoveitJoints.msg"
+  "msg/Xarm7ROSJointsToUnity.msg"
+  "msg/Xarm7Trajectory.msg"
+  "msg/Xarm7UnityRobotJoints.msg"
+  "msg/Xarm7UnityTargetPoseToROS.msg"
+  "msg/TargetPosition.msg"
+  "msg/AcceptPlan.msg"
+  "msg/GripperState.msg"
+  "msg/MoveNextCommand.msg"
+  "msg/StopCommand.msg"
+  "msg/RobotMode.msg"
+  "msg/RobotStateAndTargetPose.msg"
 )
 
 set(srv_dir "srv")
 set(srv_files
+  ${srv_dir}/JointsPosition.srv
+  ${srv_dir}/GripperPose.srv
   ${srv_dir}/BioGripperCtrl.srv
   ${srv_dir}/BioGripperEnable.srv
   ${srv_dir}/Call.srv
@@ -94,17 +110,19 @@ set(srv_files
   ${srv_dir}/PlanJoint.srv
   ${srv_dir}/PlanPose.srv
   ${srv_dir}/PlanSingleStraight.srv
+
+  ${srv_dir}/MoverService.srv
 )
 
-# set(active_files
-#   "action/GripperMove.action"
-# )
+set(action_files
+  "action/VoiceCommand.action"
+)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
-  # ${active_files}
-  DEPENDENCIES std_msgs geometry_msgs
+  ${action_files}
+  DEPENDENCIES std_msgs geometry_msgs moveit_msgs
 )
 
 ament_package()

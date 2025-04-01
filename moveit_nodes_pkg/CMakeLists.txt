@@ -22,9 +22,6 @@ find_package(boost_filesystem REQUIRED)
 #hrc
 find_package(jsoncpp REQUIRED)
 
-# find_package(moveit_task_constructor_core REQUIRED)
-# find_package(moveit_task_constructor_msgs REQUIRED)
-
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
 

@@ -58,6 +58,7 @@ def launch_setup(context, *args, **kwargs):
 
     kinematics_suffix = LaunchConfiguration('kinematics_suffix', default='')
     
+    is_sim = LaunchConfiguration('is_sim', default=False)
     robot_description = LaunchConfiguration('robot_description', default='')
     ros2_control_params = LaunchConfiguration('ros2_control_params', default='')
 
@@ -120,6 +121,7 @@ def launch_setup(context, *args, **kwargs):
                     'report_type': report_type,
                     'baud_checkset': baud_checkset,
                     'default_gripper_baud': default_gripper_baud,
+                    'is_sim': is_sim,
                 }
             )
         }

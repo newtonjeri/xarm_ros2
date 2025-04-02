@@ -105,7 +105,7 @@ namespace moveitinclude
             }
         }
 
-        void gripperOpenAndClose(const std::vector<double> &target_joint_positions)
+        bool gripperOpenAndClose(const std::vector<double> &target_joint_positions)
         {
 
             bool success = move_group->setJointValueTarget(target_joint_positions);
@@ -118,11 +118,12 @@ namespace moveitinclude
             {
                 RCLCPP_ERROR(rclcpp::get_logger("moveitinclude_node"),
                              "Pose-plan Fail -> Failed to plan a path to the target pose. Please ensure target is within gripper joints range");
-                return;
+                return false;
             }
             else
             {
                 move_group->execute(plan_);
+                return true;
             }
         }
 

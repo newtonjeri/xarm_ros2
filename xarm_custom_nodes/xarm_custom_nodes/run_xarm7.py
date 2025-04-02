@@ -37,31 +37,31 @@ def main():
     # Add the command to run the ros_tcp_endpoint node if Unity is connected
     if ip_choice == "y":
         commands.append(
-            f"cd /home/shared_folder/xarm7_ws; source install/setup.bash; "
+            f"cd /home/shared_folder/dev_ws; source install/setup.bash; "
             f"ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:={ros_ip}"
         )
 
     # Add the appropriate launch command based on the user's choice
     if choice == "real":
         commands.append(
-            "cd /home/shared_folder/xarm7_ws; source install/setup.bash; "
+            "cd /home/shared_folder/dev_ws; source install/setup.bash; "
             "ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py add_gripper:=true robot_ip:=172.16.40.20"
         )
     else:
         commands.append(
-            "cd /home/shared_folder/xarm7_ws; source /usr/share/gazebo/setup.bash; source install/setup.bash; "
+            "cd /home/shared_folder/dev_ws; source /usr/share/gazebo/setup.bash; source install/setup.bash; "
             "ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py add_gripper:=true"
         )
 
     # Common commands for both simulation and real robot
     commands.extend([
-        "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 launch xarm_custom_nodes custom_nodes.launch.py",
-        "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 run moveit_nodes_pkg xarm7_mover_node",
-        "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 run moveit_nodes_pkg xarm_gripper_node",
-        "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
-        # "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 run moveit_nodes_pkg update_planning_scene_node",
-        "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 launch moveit_nodes_pkg start_container.launch.py",
-        "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 launch moveit_nodes_pkg experiment002.launch.py",
+        "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch xarm_custom_nodes custom_nodes.launch.py",
+        "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 run moveit_nodes_pkg xarm7_mover_node",
+        "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 run moveit_nodes_pkg xarm_gripper_node",
+        "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
+        # "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 run moveit_nodes_pkg update_planning_scene_node",
+        "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch moveit_nodes_pkg start_container.launch.py",
+        "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch moveit_nodes_pkg experiment002.launch.py",
     ])
 
     # Run each command in a new tab

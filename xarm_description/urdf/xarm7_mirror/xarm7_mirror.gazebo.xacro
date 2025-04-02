@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:macro name="xarm7_gazebo" params="prefix">
+  <xacro:macro name="xarm7_mirror_gazebo" params="prefix">
 
     <gazebo reference="${prefix}link_base">
       <selfCollide>true</selfCollide>

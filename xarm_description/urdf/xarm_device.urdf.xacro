@@ -7,6 +7,7 @@
   <xacro:arg name="velocity_control" default="false"/>
   <xacro:arg name="add_gripper" default="false"/>
   <xacro:arg name="add_vacuum_gripper" default="false"/>
+  <xacro:arg name="add_bio_gripper" default="false"/>
   <xacro:arg name="model1300" default="false"/>
   
   <xacro:arg name="dof" default="7"/>
@@ -34,7 +35,7 @@
   <xacro:arg name="geometry_mesh_origin_rpy" default="0 0 0"/>
   <xacro:arg name="geometry_mesh_tcp_xyz" default="0 0 0"/>
   <xacro:arg name="geometry_mesh_tcp_rpy" default="0 0 0"/>
-  
+
   <xacro:arg name="baud_checkset" default="true"/>
   <xacro:arg name="default_gripper_baud" default="2000000"/>
   
@@ -49,7 +50,8 @@
   <xacro:include filename="$(find xarm_description)/urdf/xarm_device_macro.xacro" />
   <xacro:xarm_device prefix="$(arg prefix)" hw_ns="$(arg hw_ns)" limited="$(arg limited)" 
     effort_control="$(arg effort_control)" velocity_control="$(arg velocity_control)"
-    add_gripper="$(arg add_gripper)" add_vacuum_gripper="$(arg add_vacuum_gripper)" dof="$(arg dof)" 
+    add_gripper="$(arg add_gripper)" add_vacuum_gripper="$(arg add_vacuum_gripper)" 
+    add_bio_gripper="$(arg add_bio_gripper)" dof="$(arg dof)" 
     ros2_control_plugin="$(arg ros2_control_plugin)" robot_type="$(arg robot_type)" 
     load_gazebo_plugin="true" ros2_control_params="$(arg ros2_control_params)"
     add_realsense_d435i="$(arg add_realsense_d435i)" 
@@ -64,7 +66,8 @@
     robot_ip="$(arg robot_ip)" report_type="$(arg report_type)"
     baud_checkset="$(arg baud_checkset)" default_gripper_baud="$(arg default_gripper_baud)"
     model1300="$(arg model1300)" attach_to="$(arg attach_to)" attach_xyz="$(arg attach_xyz)" attach_rpy="$(arg attach_rpy)"
-    robot_sn="$(arg robot_sn)" use_gazebo_camera="$(arg use_gazebo_camera)" mesh_suffix="$(arg mesh_suffix)" kinematics_suffix="$(arg kinematics_suffix)"
-    is_sim="$(arg is_sim)" />
+    robot_sn="$(arg robot_sn)" use_gazebo_camera="$(arg use_gazebo_camera)" mesh_suffix="$(arg mesh_suffix)" kinematics_suffix="$(arg kinematics_suffix)" 
+    is_sim="$(arg is_sim)"
+    />
 
 </robot>

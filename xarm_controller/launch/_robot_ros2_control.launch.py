@@ -56,6 +56,7 @@ def launch_setup(context, *args, **kwargs):
 
     kinematics_suffix = LaunchConfiguration('kinematics_suffix', default='')
 
+    is_sim = LaunchConfiguration('is_sim', default=False)
     # # robot driver launch
     # # xarm_api/launch/_robot_driver.launch.py
     # robot_driver_launch = IncludeLaunchDescription(
@@ -108,6 +109,7 @@ def launch_setup(context, *args, **kwargs):
             'geometry_mesh_tcp_xyz': geometry_mesh_tcp_xyz,
             'geometry_mesh_tcp_rpy': geometry_mesh_tcp_rpy,
             'kinematics_suffix': kinematics_suffix,
+            'is_sim': is_sim,
         }.items(),
     )
 
@@ -151,6 +153,7 @@ def launch_setup(context, *args, **kwargs):
             'report_type': report_type,
             'baud_checkset': baud_checkset,
             'default_gripper_baud': default_gripper_baud,
+            'is_sim': is_sim,
         }.items(),
     )
     

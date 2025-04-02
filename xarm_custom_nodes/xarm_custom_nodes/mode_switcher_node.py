@@ -27,8 +27,9 @@ class ModeSwitcher(Node):
         # Create a subscriber 
         self.mode_subscriber = self.create_subscription(RobotMode, "/robot_mode", self.mode_callback, 10)
         
-        # Initialize process variables
-        self.moveit_process = "ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py"
+        # Initialize process variables 
+        # self.moveit_process = "ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py"
+        self.moveit_process = "ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py"
         self.driver_process = "ros2 launch xarm_api xarm7_driver.launch.py"
         self.current_mode = "MODE-MOVEIT"
         self.get_logger().info("Mode Switcher node started")
@@ -75,8 +76,8 @@ class ModeSwitcher(Node):
     def start_moveit_process(self):
         # Start the moveit_process
         self.get_logger().info("Starting moveit_process...")
-        # self.moveit_process_full = "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py add_gripper:=true robot_ip:=172.16.40.20"
-        self.moveit_process_full = "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py add_gripper:=true"
+        # self.moveit_process_full = "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py add_gripper:=true robot_ip:=172.16.40.20"
+        self.moveit_process_full = "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py add_gripper:=true"
     
         self.run_in_new_tab(self.moveit_process_full)
         self.get_logger().info("Running moveit_process...")
@@ -84,7 +85,7 @@ class ModeSwitcher(Node):
     def start_driver_process(self):
         # Start the driver_process
         self.get_logger().info("Starting driver_process...")
-        self.driver_process_full = "cd /home/shared_folder/xarm7_ws; source install/setup.bash; ros2 launch xarm_api xarm7_driver.launch.py report_type:=normal robot_ip:=172.16.40.20"
+        self.driver_process_full = "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch xarm_api xarm7_driver.launch.py report_type:=normal robot_ip:=172.16.40.20"
         self.run_in_new_tab(self.driver_process_full)
         self.get_logger().info("Running driver_process...")
         

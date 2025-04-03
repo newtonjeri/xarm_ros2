@@ -95,7 +95,7 @@ namespace simple_state_machine
             {MOVING, {PICKING, PLACING, IDLE, MANUAL_MODE, FINAL, ERROR}},
             {PICKING, {MOVING, ERROR}},
             {PLACING, {MOVING, FINAL, ERROR}},
-            {MANUAL_MODE, {IDLE, FINAL, ERROR}},
+            {MANUAL_MODE, {MANUAL_MODE, IDLE, FINAL, ERROR}},
             {FINAL, {IDLE, ERROR}},
             {ERROR, {IDLE}}};
 
@@ -231,29 +231,29 @@ namespace simple_state_machine
     void PickAndPlaceStateMachine::handleError()
     {
         RCLCPP_ERROR(this->get_logger(), "Error encountered in state %s",
-                     getStateName(current_state).c_str());
+                     getStateName(previous_state).c_str());
 
         // Stop all movements
         xarm7_object->move_group->stop();
         xarm_gripper_object->move_group->stop();
-
-        // Transition back to IDLE after timeout
-        if ((this->now() - state_start_time).seconds() > 5.0)
-        {
-            enterState(IDLE);
-        }
+        gripper_state = "FREE";
+        previous_state = IDLE;
+        current_state = IDLE;
+        current_command = 0;
+        enterState(IDLE);
     }
 
     void PickAndPlaceStateMachine::idle(uint8_t next_state)
     {
-        // 1. State Entry Actions
-        RCLCPP_INFO(this->get_logger(), "IDLE state entered");
 
-        if(previous_state != IDLE){
-            // Publish idle mode (0)
+        if(previous_state == MANUAL_MODE){
+            RCLCPP_INFO(this->get_logger(), "IDLE state entered from MANUAL_MODE");
+            // Publish 0 for MOVEIT MODE to robot state 
             xarm_msgs::msg::RobotMode mode_msg;
-            mode_msg.data = 0; // IDLE mode
+            mode_msg.data = 0;
             mode_publisher->publish(mode_msg);
+            enterState(IDLE);
+            return;
         }
 
         // 2. Validate Requested Transition
@@ -547,14 +547,21 @@ namespace simple_state_machine
             xarm_msgs::msg::RobotMode mode_msg;
             mode_msg.data = 2; // Manual mode
             mode_publisher->publish(mode_msg);
+            enterState(MANUAL_MODE);
+            return;
         }
 
         // 2. Only process transitions if they come from the state topic
         // (Ignore the next_state parameter unless it's a fresh command)
+
         if (command_source == CommandSource::STATE_TOPIC)
         {
             STATES requested_state = static_cast<STATES>(next_state);
-            if (isValidTransition(requested_state))
+            
+            if(requested_state == MANUAL_MODE){
+                // Do nothing
+            }
+            else if (isValidTransition(requested_state))
             {
                 enterState(requested_state);
             }

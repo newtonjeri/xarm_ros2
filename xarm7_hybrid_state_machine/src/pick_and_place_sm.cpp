@@ -23,16 +23,35 @@ namespace simple_state_machine
         : Node("pick_and_place_sm_node", options),
           current_state(IDLE),
           previous_state(IDLE),
-          state_timeout(30s),
           gripper_state("FREE")
     {
-         // Set up signal handler
+        // Set up signal handler
         signal(SIGINT, exit_sig_handler);
+
+        // Create callback groups
+        state_callback_group_ = this->create_callback_group(
+            rclcpp::CallbackGroupType::MutuallyExclusive);
+
+        stop_callback_group_ = this->create_callback_group(
+            rclcpp::CallbackGroupType::MutuallyExclusive);
+            
+        
         // Initialize publishers and subscribers
         mode_publisher = this->create_publisher<xarm_msgs::msg::RobotMode>("/robot_mode", 10);
+
+        auto state_sub_options = rclcpp::SubscriptionOptions();
+        state_sub_options.callback_group = state_callback_group_;
         state_subscriber = this->create_subscription<xarm_msgs::msg::RobotStateAndTargetPose>(
             "/xarm7_state_topic", 10,
-            std::bind(&PickAndPlaceStateMachine::stateCallback, this, std::placeholders::_1));
+            std::bind(&PickAndPlaceStateMachine::stateCallback, this, std::placeholders::_1),
+            state_sub_options);
+
+        auto stop_command_sub_options = rclcpp::SubscriptionOptions();
+        stop_command_sub_options.callback_group = stop_callback_group_;
+        stop_command_subscriber_ = this->create_subscription<xarm_msgs::msg::StopCommand>(
+            "/xarm7_stop_command", 10,
+            std::bind(&PickAndPlaceStateMachine::stopCallback, this, std::placeholders::_1),
+            stop_command_sub_options);
 
         // Initialize default pose
         previous_pose.position.x = 0.4912;
@@ -46,6 +65,14 @@ namespace simple_state_machine
         // Setup initialization timer
         initialization_timer = this->create_wall_timer(
             500ms, std::bind(&PickAndPlaceStateMachine::init, this));
+    }
+
+    PickAndPlaceStateMachine::~PickAndPlaceStateMachine()
+    {
+        if (executor_thread_.joinable()) {
+            executor_->cancel();
+            executor_thread_.join();
+        }
     }
 
     void PickAndPlaceStateMachine::init()
@@ -65,17 +92,6 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::executeStateMachine()
     {
-        // Check for state timeouts
-        // auto elapsed = this->now() - state_start_time;
-        // if (elapsed.seconds() > state_timeouts.at(current_state) / 1000.0)
-        // {
-        //     RCLCPP_WARN(this->get_logger(), "Timeout in state %s", getStateName(current_state).c_str());
-        //     enterState(ERROR);
-        // }
-
-        // Execute current state logic
-        stateTransitionLogic();
-
         // Handle completion or error conditions
         if (current_state == FINAL)
         {
@@ -85,6 +101,8 @@ namespace simple_state_machine
         {
             handleError();
         }
+        // Execute current state logic
+        stateTransitionLogic();
     }
 
     bool PickAndPlaceStateMachine::isValidTransition(STATES next_state)
@@ -178,6 +196,19 @@ namespace simple_state_machine
         target_pose_1 = msg->target_pose_1;
         target_pose_2 = msg->target_pose_2;
         RCLCPP_DEBUG(this->get_logger(), "Received new command: %d", current_command);
+    }
+
+    void PickAndPlaceStateMachine::stopCallback(const xarm_msgs::msg::StopCommand::SharedPtr msg)
+    {
+        bool stop_command = msg->stop_command_state;
+        if (stop_command){
+            RCLCPP_ERROR(this->get_logger(), "RECEIVED STOP COMMAND!!!");
+            handleError();
+            enterState(ERROR);
+        }
+        else{
+            RCLCPP_INFO(this->get_logger(), "Nomal operation");
+        }
     }
 
     void PickAndPlaceStateMachine::stateTransitionLogic()

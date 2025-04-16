@@ -107,10 +107,10 @@ namespace simple_state_machine
 
         // State operations
         void idle(uint8_t next_state = MOVING);
-        void moving(geometry_msgs::msg::Pose target_pose, uint8_t next_state);
+        void moving(geometry_msgs::msg::Pose target_pose_1, geometry_msgs::msg::Pose target_pose_2);
         void moving(geometry_msgs::msg::Pose target_pose);
-        void picking(geometry_msgs::msg::Pose target_pose_1, geometry_msgs::msg::Pose target_pose_2, uint8_t next_state = MOVING);
-        void placing(geometry_msgs::msg::Pose target_pose, uint8_t next_state = MOVING);
+        void picking(geometry_msgs::msg::Pose target_pose_1, geometry_msgs::msg::Pose target_pose_2);
+        void placing(geometry_msgs::msg::Pose target_pose);
         void manual_mode(uint8_t next_state = FINAL);
 
         // Helper functions

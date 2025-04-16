@@ -85,7 +85,7 @@ namespace simple_state_machine
         execution_timer = this->create_wall_timer(
             100ms, std::bind(&PickAndPlaceStateMachine::executeStateMachine, this));
 
-        RCLCPP_INFO(this->get_logger(), "MoveIt interfaces initialized");
+        RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: MoveIt interfaces initialized");
         initialization_timer->cancel();
         enterState(IDLE);
     }
@@ -96,10 +96,12 @@ namespace simple_state_machine
         if (current_state == FINAL)
         {
             handleCompletion();
+            return;
         }
         else if (current_state == ERROR)
         {
             handleError();
+            return;
         }
         // Execute current state logic
         stateTransitionLogic();
@@ -107,12 +109,11 @@ namespace simple_state_machine
 
     bool PickAndPlaceStateMachine::isValidTransition(STATES next_state)
     {
-        // Updated transition rules including IDLE->FINAL
         static const std::map<STATES, std::set<STATES>> valid_transitions = {
-            {IDLE, {IDLE, MOVING, MANUAL_MODE, FINAL, ERROR}}, // Added FINAL
-            {MOVING, {PICKING, PLACING, IDLE, MANUAL_MODE, FINAL, ERROR}},
-            {PICKING, {MOVING, ERROR}},
-            {PLACING, {MOVING, FINAL, ERROR}},
+            {IDLE, {IDLE, MOVING, MANUAL_MODE, FINAL, ERROR}},
+            {MOVING, {MOVING, PICKING, PLACING, IDLE, MANUAL_MODE, FINAL, ERROR}},
+            {PICKING, {IDLE, MOVING, ERROR}},
+            {PLACING, {IDLE, MOVING, FINAL, ERROR}},
             {MANUAL_MODE, {MANUAL_MODE, IDLE, FINAL, ERROR}},
             {FINAL, {IDLE, ERROR}},
             {ERROR, {IDLE}}};
@@ -161,11 +162,13 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::enterState(STATES new_state)
     {
-        RCLCPP_INFO(this->get_logger(), "Transitioning from %s to %s",
-                    getStateName(current_state).c_str(),
-                    getStateName(new_state).c_str());
+        if(new_state != previous_state){
+            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Transitioning from %s to %s", 
+                        getStateName(current_state).c_str(),
+                        getStateName(previous_state).c_str(),
+                        getStateName(new_state).c_str());
+        }
 
-        exitState(current_state);
         previous_state = current_state;
         current_state = new_state;
 
@@ -181,12 +184,8 @@ namespace simple_state_machine
             default:
                 break;
         }
-    }
-
-    void PickAndPlaceStateMachine::exitState(STATES old_state)
-    {
-        RCLCPP_DEBUG(this->get_logger(), "Exiting state: %s", getStateName(old_state).c_str());
-        // State-specific cleanup can be added here
+        
+        RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s", getStateName(current_state).c_str());
     }
 
     void PickAndPlaceStateMachine::stateCallback(const xarm_msgs::msg::RobotStateAndTargetPose::SharedPtr msg)
@@ -195,19 +194,22 @@ namespace simple_state_machine
         current_command = msg->robot_next_state;
         target_pose_1 = msg->target_pose_1;
         target_pose_2 = msg->target_pose_2;
-        RCLCPP_DEBUG(this->get_logger(), "Received new command: %d", current_command);
+        RCLCPP_DEBUG(this->get_logger(), "XARM7-STATE: %s: Received new command: %d", getStateName(current_state).c_str(), current_command);
     }
 
     void PickAndPlaceStateMachine::stopCallback(const xarm_msgs::msg::StopCommand::SharedPtr msg)
     {
         bool stop_command = msg->stop_command_state;
         if (stop_command){
-            RCLCPP_ERROR(this->get_logger(), "RECEIVED STOP COMMAND!!!");
-            handleError();
-            enterState(ERROR);
+            RCLCPP_ERROR(this->get_logger(), "XARM7-STATE: %s: RECEIVED STOP COMMAND!!!", getStateName(current_state).c_str());
+            current_state = ERROR;
+            current_command = (uint8_t)STATES::ERROR;
+
+            xarm7_object->move_group->stop();
+            xarm_gripper_object->move_group->stop();
         }
         else{
-            RCLCPP_INFO(this->get_logger(), "Nomal operation");
+            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Normal operation", getStateName(current_state).c_str());
         }
     }
 
@@ -218,21 +220,18 @@ namespace simple_state_machine
         case IDLE:
             // Delegate all idle state transitions to the idle() function
             idle(current_command);
-
-            // RCLCPP_DEBUG_ONCE(this->get_logger(), 
-            //                  "Waiting for commands on /xarm7_state_topic");
             break;
 
         case MOVING:
-            moving(target_pose_1, current_command);
+            moving(target_pose_1, target_pose_2);
             break;
 
         case PICKING:
-            picking(target_pose_1, target_pose_2, current_command);
+            picking(target_pose_1, target_pose_2);
             break;
 
         case PLACING:
-            placing(target_pose_2, current_command);
+            placing(target_pose_2);
             break;
 
         case MANUAL_MODE:
@@ -251,7 +250,7 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::handleCompletion()
     {
-        RCLCPP_INFO(this->get_logger(), "Operation completed successfully");
+        RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Operation completed successfully", getStateName(current_state).c_str());
         gripper_state = "FREE";
         previous_state = IDLE;
         current_state = IDLE;
@@ -278,7 +277,7 @@ namespace simple_state_machine
     {
 
         if(previous_state == MANUAL_MODE){
-            RCLCPP_INFO(this->get_logger(), "IDLE state entered from MANUAL_MODE");
+            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: IDLE state entered from MANUAL_MODE", getStateName(current_state).c_str());
             // Publish 0 for MOVEIT MODE to robot state 
             xarm_msgs::msg::RobotMode mode_msg;
             mode_msg.data = 0;
@@ -312,15 +311,15 @@ namespace simple_state_machine
         switch (requested_state)
         {
         case IDLE:
-            // RCLCPP_INFO(this->get_logger(), "Already in IDLE state");
+            // RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Already in IDLE state");
             break;
         case MOVING:
-            RCLCPP_INFO(this->get_logger(), "Starting normal operation sequence");
+            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Starting normal operation sequence", getStateName(current_state).c_str());
             enterState(MOVING);
             break;
 
         case MANUAL_MODE:
-            RCLCPP_INFO(this->get_logger(), "Entering manual control mode");
+            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Entering manual control mode", getStateName(current_state).c_str());
             enterState(MANUAL_MODE);
             break;
 
@@ -337,60 +336,73 @@ namespace simple_state_machine
         }
     }
 
-    void PickAndPlaceStateMachine::moving(geometry_msgs::msg::Pose target_pose, uint8_t next_state)
+    void PickAndPlaceStateMachine::moving(geometry_msgs::msg::Pose target_pose_1, geometry_msgs::msg::Pose target_pose_2)
     {
         // 1. Entry Actions
         RCLCPP_INFO(this->get_logger(),
                     "MOVING to pose (x: %.3f, y: %.3f, z: %.3f)",
-                    target_pose.position.x,
-                    target_pose.position.y,
-                    target_pose.position.z);
+                    target_pose_1.position.x,
+                    target_pose_1.position.y,
+                    target_pose_1.position.z);
 
         // 2. Execute Movement
-        bool success = xarm7_object->planToTargetPose(target_pose, false);
+        bool success = xarm7_object->planToTargetPose(target_pose_1, false);
         if (!success)
         {
             RCLCPP_ERROR(this->get_logger(),
-                         "Movement failed to (x: %.3f, y: %.3f)",
-                         target_pose.position.x,
-                         target_pose.position.y);
+                         "MOVEMENT TO (x: %.3f, y: %.3f, z: %.3f) FAILED!!",
+                         target_pose_1.position.x,
+                         target_pose_1.position.y,
+                         target_pose_1.position.z);
             enterState(ERROR);
             return;
+        }else{
+
+            // 3. Determine Next State
+            STATES next = MOVING; // Default to contannot move in ERROR stateinue moving
+
+            // Check for special pose conditions
+            if (isPickPlacePose(target_pose_1)){
+                // Transition based on gripper state
+                next = (gripper_state == "FREE") ? PICKING : PLACING;
+            }
+            // Check for manual mode override
+            else if (current_command == MANUAL_MODE && isValidTransition(MANUAL_MODE)){
+                next = MANUAL_MODE;
+            }
+            // Check for return to idle
+            else if (current_command == IDLE && isValidTransition(IDLE)){
+                next = IDLE;
+            }else if (isFinalPose(target_pose_1, target_pose_2)){
+                next = FINAL;
+            // }else if(current_command == MOVING){
+            //     next = MOVING;
+            }else{
+                next = IDLE;
+                current_command = IDLE;
+            }
+
+            if (current_command == ERROR){
+                next = ERROR;
+            }
+
+            enterState(next);
+            previous_pose = target_pose_1;
+
         }
 
-        // 3. Determine Next State
-        STATES next = MOVING; // Default to continue moving
-
-        // Check for special pose conditions
-        if (isPickPlacePose(target_pose))
-        {
-            // Transition based on gripper state
-            next = (gripper_state == "FREE") ? PICKING : PLACING;
-        }
-        // Check for manual mode override
-        else if (next_state == MANUAL_MODE && isValidTransition(MANUAL_MODE))
-        {
-            next = MANUAL_MODE;
-        }
-        // Check for return to idle
-        else if (next_state == IDLE && isValidTransition(IDLE))
-        {
-            next = IDLE;
-        }
-        // Check if reached final pose
-        else if (isFinalPose(target_pose, previous_pose))
-        {
-            next = FINAL;
-        }
-
-        enterState(next);        // Store and Transition
-        previous_pose = target_pose;
     }
 
     void PickAndPlaceStateMachine::moving(geometry_msgs::msg::Pose target_pose)
     {
         // Simplified version without state transition logic
         RCLCPP_DEBUG(this->get_logger(), "Executing movement only");
+
+        if (current_command == ERROR)
+        {
+            RCLCPP_ERROR(this->get_logger(), "ROBOT MOVEMENT STOPPED!!!");
+            return;
+        }
 
         bool success = xarm7_object->planToTargetPose(target_pose, false);
         if (!success)
@@ -407,7 +419,9 @@ namespace simple_state_machine
         // Check for characteristic pick/place pose orientation
         const double tolerance = 0.001;
         return (std::abs(pose.orientation.x - 1.0) < tolerance &&
-                std::abs(pose.orientation.z) < tolerance);
+                std::abs(pose.orientation.y) < tolerance &&
+                std::abs(pose.orientation.z) < tolerance &&
+                std::abs(pose.orientation.w) < tolerance);
     }
 
     bool PickAndPlaceStateMachine::isFinalPose(const geometry_msgs::msg::Pose &pose,
@@ -415,7 +429,7 @@ namespace simple_state_machine
     {
         // Check if we've reached the final position
         const double position_tolerance = 0.005; // 5mm
-        const double orientation_tolerance = 0.01;
+        const double orientation_tolerance = 0.001;
 
         return (std::abs(pose.position.x - previous_pose.position.x)) < position_tolerance &&
                (std::abs(pose.position.y - previous_pose.position.y)) < position_tolerance &&
@@ -426,13 +440,14 @@ namespace simple_state_machine
                (std::abs(pose.orientation.w - previous_pose.orientation.w)) < orientation_tolerance;
     }
 
-    void PickAndPlaceStateMachine::picking(geometry_msgs::msg::Pose target_pose_1, geometry_msgs::msg::Pose target_pose_2, uint8_t next_state)
+    void PickAndPlaceStateMachine::picking(geometry_msgs::msg::Pose target_pose_1, geometry_msgs::msg::Pose target_pose_2)
     {
         // 1. Entry Actions
         RCLCPP_INFO(this->get_logger(),
-                    "Starting PICK operation at (x: %.3f, y: %.3f)",
+                    "Starting PICK operation at (x: %.3f, y: %.3f, z: %.3f)",
                     target_pose_1.position.x,
-                    target_pose_1.position.y);
+                    target_pose_1.position.y,
+                    target_pose_1.position.z);
 
         // 2. Open Gripper
         if (!xarm_gripper_object->gripperOpenAndClose({0.0, 0.0, 0.0, 0.0, 0.0, 0.0}))
@@ -472,15 +487,15 @@ namespace simple_state_machine
 
         // 6. Transition Logic
         STATES next = MOVING; // Default transition
-        if (isValidTransition(static_cast<STATES>(next_state)))
+        if (isValidTransition(static_cast<STATES>(current_command)))
         {
-            next = static_cast<STATES>(next_state);
+            next = static_cast<STATES>(current_command);
         }
         else
         {
             RCLCPP_WARN(this->get_logger(),
                         "Requested transition to %s not allowed, defaulting to MOVING",
-                        getStateName(static_cast<STATES>(next_state)).c_str());
+                        getStateName(static_cast<STATES>(current_command)).c_str());
         }
 
         if(isFinalPose(target_pose_1, target_pose_2))
@@ -491,7 +506,7 @@ namespace simple_state_machine
         enterState(next);
     }
 
-    void PickAndPlaceStateMachine::placing(geometry_msgs::msg::Pose target_pose, uint8_t next_state)
+    void PickAndPlaceStateMachine::placing(geometry_msgs::msg::Pose target_pose)
     {
         // 1. Entry Actions
         RCLCPP_INFO(this->get_logger(),
@@ -552,15 +567,15 @@ namespace simple_state_machine
         {
             next = FINAL; // Auto-transition if at final pose
         }
-        else if (isValidTransition(static_cast<STATES>(next_state)))
+        else if (isValidTransition(static_cast<STATES>(current_command)))
         {
-            next = static_cast<STATES>(next_state);
+            next = static_cast<STATES>(current_command);
         }
         else
         {
             RCLCPP_WARN(this->get_logger(),
                         "Requested transition to %s not allowed, using %s",
-                        getStateName(static_cast<STATES>(next_state)).c_str(),
+                        getStateName(static_cast<STATES>(current_command)).c_str(),
                         getStateName(next).c_str());
         }
 
@@ -572,7 +587,7 @@ namespace simple_state_machine
         // 1. Entry Actions (only execute on first entry)
         if (previous_state != MANUAL_MODE)
         {
-            RCLCPP_INFO(this->get_logger(), "Entering MANUAL_MODE");
+            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Entering MANUAL_MODE", getStateName(current_state).c_str());
 
             // Publish manual mode command (2)
             xarm_msgs::msg::RobotMode mode_msg;

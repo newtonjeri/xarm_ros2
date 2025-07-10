@@ -15,8 +15,8 @@ import subprocess
 import shlex
 import psutil
 
-import time
-
+workspace_folder = "/home/shared_folder/dev_ws"
+robot_ip = "172.16.40.20"
 
 class ModeSwitcher(Node):
     def __init__(self):
@@ -76,8 +76,8 @@ class ModeSwitcher(Node):
     def start_moveit_process(self):
         # Start the moveit_process
         self.get_logger().info("Starting moveit_process...")
-        self.moveit_process_full = "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py add_gripper:=true robot_ip:=172.16.40.20"
-        # self.moveit_process_full = "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py add_gripper:=true"
+        self.moveit_process_full = f" cd {workspace_folder}; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py add_gripper:=true robot_ip:={robot_ip}"
+        # self.moveit_process_full = f" cd {workspace_folder}; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py add_gripper:=true"
     
         self.run_in_new_tab(self.moveit_process_full)
         self.get_logger().info("Running moveit_process...")
@@ -85,7 +85,7 @@ class ModeSwitcher(Node):
     def start_driver_process(self):
         # Start the driver_process
         self.get_logger().info("Starting driver_process...")
-        self.driver_process_full = "cd /home/shared_folder/dev_ws; source install/setup.bash; ros2 launch xarm_api xarm7_driver.launch.py report_type:=normal robot_ip:=172.16.40.20"
+        self.driver_process_full = f" cd {workspace_folder}; source install/setup.bash; ros2 launch xarm_api xarm7_driver.launch.py report_type:=normal robot_ip:={robot_ip}"
         self.run_in_new_tab(self.driver_process_full)
         self.get_logger().info("Running driver_process...")
         
@@ -107,7 +107,7 @@ class ModeSwitcher(Node):
         Checks if a process matching the specific package and launch file is already running.
         """
         # Extract the "ros2 launch" part of the command
-        # Example: "ros2 launch xarm_api xarm7_driver.launch.py report_type:=normal robot_ip:=172.16.40.20"
+        # Example: "ros2 launch xarm_api xarm7_driver.launch.py report_type:=normal robot_ip:={robot_ip}"
         ros2_launch_command = None
         for part in shlex.split(command):
             if part == "ros2":

@@ -359,7 +359,7 @@ namespace simple_state_machine
         }else{
 
             // 3. Determine Next State
-            STATES next = MOVING; // Default to contannot move in ERROR stateinue moving
+            STATES next = MOVING; // Default to state moving
 
             // Check for special pose conditions
             if (isPickPlacePose(target_pose_1)){

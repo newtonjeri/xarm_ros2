@@ -76,7 +76,7 @@ def main():
         f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg xarm7_mover_node",
         f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg xarm_gripper_node",
         f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
-        # f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg update_planning_scene_node",
+        f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg update_planning_scene_node",
         f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg start_container.launch.py",
         f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg experiment002.launch.py",
     ])

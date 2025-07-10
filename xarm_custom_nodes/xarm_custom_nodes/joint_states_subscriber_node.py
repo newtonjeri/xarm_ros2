@@ -26,7 +26,7 @@ class JointStatesSubscriberNode(Node):
     def __init__(self):
         
         super().__init__('joint_states_subscriber_node')
-        self.freq = 50.0    # Publish and subscription frequency
+        self.freq = 60.0    # Publish and subscription frequency
         # List to store the end effector pose (w, x, y, z)
         self.tcp_pose:float = []
         # Start time of the execution

@@ -17,7 +17,7 @@ class UnitySubscriberNode(Node):
     def __init__(self):
         super().__init__('unity_subscriber')
 
-        self.freq = 60
+        self.freq = 60.0
 
         self.joint_names = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"]
         self.joint_positions = []

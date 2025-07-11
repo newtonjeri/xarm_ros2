@@ -1,0 +1,6 @@
+description              State       Mode
+
+MOVING                      1          1
+STOP                        2          1
+SELF-COLLISION              5          0
+MANUAL-MODE                 

@@ -10,7 +10,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', ['launch/custom_nodes.launch.py'])
+        ('share/' + package_name + '/launch', ['launch/custom_nodes.launch.py']),
+        ('share/' + package_name + '/launch', ['launch/write_data_to_csv.launch.py'])
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -21,7 +22,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "joint_states_subscriber_node = xarm_custom_nodes.joint_states_subscriber_node:main",
+            "joints_info_node = xarm_custom_nodes.joints_info_node:main",
+            "joints_info_saver_node = xarm_custom_nodes.joints_info_saver_node:main",
             "unity_to_ros2_publisher_node = xarm_custom_nodes.unity_to_ros2_publisher_test_node:main",
             "unity_subscriber_node = xarm_custom_nodes.unity_subscriber:main",
             "tcp_pose_publisher_node = xarm_custom_nodes.tcp_pose_publisher_node:main",

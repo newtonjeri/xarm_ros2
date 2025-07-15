@@ -97,19 +97,19 @@ class JointStatesSubscriberNode(Node):
         joint_info_msg.velocities = self.joint_velocities
 
         if self.trigger == True:
-            self.start_time = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f ")
+            self.start_time =  datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             self.trigger = False
 
 
         # Time data is sent
-        self.time_data_sent = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f ")
+        self.time_data_sent =  datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         joint_info_msg.timestamp = self.time_data_sent
 
         # Publish joint names and positions to another topic
         self.joint_info_publisher.publish(joint_info_msg)
 
         # Frame time 
-        self.frame_time = datetime.strptime(self.time_data_sent, "%m/%d/%Y %H:%M:%S.%f ") - datetime.strptime(self.start_time, "%m/%d/%Y %H:%M:%S.%f ")
+        self.frame_time = datetime.strptime(self.time_data_sent, "%Y-%m-%d %H:%M:%S.%f") - datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S.%f")
 
 
         self.save_to_csv(joint_info_msg.names, joint_info_msg.positions, self.tcp_pose,\

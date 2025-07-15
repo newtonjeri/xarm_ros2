@@ -30,7 +30,7 @@ class DataFromUnityAnalysisNode(Node):
         self.positions = msg.positions
         self.unity_time = msg.timestamp
 
-        time_data_received = datetime.now().strftime("%m/%d/%Y %H:%M:%S.%f ")
+        time_data_received = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-6]
         self.save_to_csv(self.positions[0], self.unity_time, time_data_received )
 
     def save_to_csv(self, joint1_position, unity_time, time_data_received):

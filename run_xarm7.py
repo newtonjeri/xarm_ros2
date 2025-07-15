@@ -1,10 +1,97 @@
 import subprocess
 import re
 import socket
-
+import threading
+import time
+import sys
+import select
+import termios
+import tty
+import os
+import signal
 
 workspace_folder = "/home/shared_folder/dev_ws"
 
+class KeyboardController:
+    def __init__(self):
+        self.recording_process = None
+        self.recording_active = False
+        self.old_settings = None
+        
+    def get_char(self):
+        """Get a single character from stdin without pressing Enter"""
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+    
+    def start_recording(self):
+        """Start the data recording process"""
+        if self.recording_process is None or self.recording_process.poll() is not None:
+            print("\n Starting data recording...")
+            command = f"cd {workspace_folder} && source install/setup.bash && ros2 launch xarm_custom_nodes write_data_to_csv.launch.py"
+            run_in_new_tab(command)
+            self.recording_active = True
+            print(" Data recording started! Press 's' to stop.")
+        else:
+            print("\n  Recording is already active!")
+    
+    def stop_recording(self):
+        """Stop the data recording process"""
+
+        kill_processes_by_name("ros2 launch xarm_custom_nodes write_data_to_csv.launch.py")
+        if self.recording_process and self.recording_process.poll() is None:
+            print("\n Stopping data recording...")
+            try:
+                kill_processes_by_name("ros2 launch xarm_custom_nodes write_data_to_csv.launch.py")
+            except subprocess.TimeoutExpired:
+                print(" Process didn't terminate gracefully, forcing shutdown...")
+                os.killpg(os.getpgid(self.recording_process.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass  # Process already terminated
+            
+            self.recording_active = False
+            self.recording_process = None
+            print(" Data recording stopped!")
+        else:
+            print("\n No active recording to stop!")
+    
+    def keyboard_listener(self):
+        """Listen for keyboard input in a separate thread"""
+        print("\n" + "="*50)
+        print("   KEYBOARD CONTROLS:")
+        print("   Press 'w' to START data recording")
+        print("   Press 's' to STOP data recording")
+        print("   Press 'q' to QUIT the program")
+        print("="*50)
+        
+        while True:
+            try:
+                char = self.get_char().lower()
+                
+                if char == 'w':
+                    self.start_recording()
+                elif char == 's':
+                    self.stop_recording()
+                elif char == 'q':
+                    print("\n Exiting program...")
+                    self.stop_recording()  # Stop recording if active
+                    kill_all()
+                    break
+                elif char == '\x03':  # Ctrl+C
+                    break
+                    
+            except KeyboardInterrupt:
+                print("\n Exiting program...")
+                self.stop_recording()
+                break
+            except Exception as e:
+                print(f"\nError in keyboard listener: {e}")
+                break
 
 def get_ip_address_simple():
     try:
@@ -17,7 +104,6 @@ def get_ip_address_simple():
         print(f"Error getting IP address: {e}")
         return None
 
-
 def run_in_new_tab(command):
     """
     Opens a new terminal tab and runs the specified command.
@@ -29,6 +115,50 @@ def validate_ip(ip):
     Validates an IP address format.
     """
     return re.match(r"^([0-9]{1,3}\.){3}[0-9]{1,3}$", ip) is not None
+
+def kill_processes_by_name(process_name):
+    """
+    Kills processes by their full command name.
+    """
+    # Use 'ps aux' to find processes matching the full command name
+    ps_command = f"ps aux | grep '{process_name}' | grep -v grep"
+    try:
+        # Run the command and capture the output
+        output = subprocess.check_output(ps_command, shell=True, text=True)
+        
+        # Extract PIDs from the output
+        pids = [line.split()[1] for line in output.splitlines()]
+        
+        if not pids:
+            print(f"No processes found with the name: {process_name}")
+        else:
+            print(f"Killing processes with the name: {process_name}")
+            for pid in pids:
+                print(f"Killing process ID {pid}")
+                subprocess.run(["kill", pid])
+    except subprocess.CalledProcessError:
+        print(f"No processes found with the name: {process_name}")
+
+def kill_all():
+    # List of process names to kill
+    process_names = [
+        "ros2 run ros_tcp_endpoint default_server_endpoint",
+        "ros2 run xarm_custom_nodes mode_switcher_node",
+        "ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py",
+        "ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py",
+        "ros2 launch xarm_custom_nodes custom_nodes.launch.py",
+        "ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
+        "ros2 run moveit_nodes_pkg xarm7_mover_node",
+        "ros2 run moveit_nodes_pkg update_planning_scene_node",
+        "ros2 run moveit_nodes_pkg xarm_gripper_node",
+        "ros2 launch moveit_nodes_pkg start_container.launch.py",
+        "ros2 launch moveit_nodes_pkg experiment002.launch.py",
+        "ros2 launch xarm_api xarm7_driver.launch.py",
+    ]
+
+    # Kill processes for each name in the list
+    for process_name in process_names:
+        kill_processes_by_name(process_name)
 
 def main():
     # Prompt the user to choose between simulation or real robot
@@ -82,8 +212,26 @@ def main():
     ])
 
     # Run each command in a new tab
+    print("Starting all ROS2 nodes...")
     for cmd in commands:
         run_in_new_tab(cmd)
+
+    # Give some time for the nodes to start
+    print("Waiting for nodes to initialize...")
+    time.sleep(3)
+
+    # Start the keyboard controller
+    controller = KeyboardController()
+    
+    try:
+        # Start keyboard listener in the main thread
+        controller.keyboard_listener()
+    except KeyboardInterrupt:
+        print("\nProgram interrupted by user")
+        controller.stop_recording()
+    except Exception as e:
+        print(f"\nUnexpected error: {e}")
+        controller.stop_recording()
 
 if __name__ == "__main__":
     main()

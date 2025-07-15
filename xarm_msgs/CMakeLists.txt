@@ -55,6 +55,7 @@ set(msg_files
   "msg/StopCommand.msg"
   "msg/RobotMode.msg"
   "msg/RobotStateAndTargetPose.msg"
+  "msg/TimeStamp.msg"
 )
 
 set(srv_dir "srv")

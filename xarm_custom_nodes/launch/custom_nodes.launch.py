@@ -18,9 +18,9 @@ def generate_launch_description():
 
     # Data from unity node 
     from_unity_node = Node(
-        name = "data_from_unity_analysis",
+        name = "time_stamp_subscriber_node",
         package = "xarm_custom_nodes",
-        executable = "data_from_unity_analysis"
+        executable = "time_stamp_subscriber_node"
     )
 
 

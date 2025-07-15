@@ -27,6 +27,7 @@ setup(
             "tcp_pose_publisher_node = xarm_custom_nodes.tcp_pose_publisher_node:main",
             "data_from_unity_analysis = xarm_custom_nodes.data_from_unity_analysis_node:main",
             "mode_switcher_node = xarm_custom_nodes.mode_switcher_node:main",
+            "time_stamp_subscriber_node = xarm_custom_nodes.time_stamp_subscriber:main"
         ],
     },
 )

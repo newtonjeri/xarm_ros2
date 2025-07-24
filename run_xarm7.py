@@ -94,15 +94,102 @@ class KeyboardController:
                 break
 
 def get_ip_address_simple():
+    """
+    Lists all available network interfaces and their IP addresses,
+    then allows the user to select which one to use.
+    """
+    import netifaces
+    
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        print("\n" + "="*50)
+        print("🌐 AVAILABLE NETWORK INTERFACES:")
+        print("="*50)
+        
+        interfaces = netifaces.interfaces()
+        valid_interfaces = []
+        
+        for i, interface in enumerate(interfaces):
+            try:
+                # Get IPv4 addresses for this interface
+                addrs = netifaces.ifaddresses(interface)
+                if netifaces.AF_INET in addrs:
+                    ipv4_info = addrs[netifaces.AF_INET][0]
+                    ip_addr = ipv4_info['addr']
+                    netmask = ipv4_info.get('netmask', 'N/A')
+                    
+                    # Skip loopback addresses
+                    if not ip_addr.startswith('127.'):
+                        valid_interfaces.append((interface, ip_addr, netmask))
+                        print(f"{len(valid_interfaces)}. {interface:12} - {ip_addr:15} (Netmask: {netmask})")
+                        
+            except (KeyError, IndexError):
+                # Skip interfaces without IPv4 addresses
+                continue
+        
+        if not valid_interfaces:
+            print("No valid network interfaces found!")
+            # Fallback to original method
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        
+        print("="*50)
+        
+        # Let user choose interface
+        while True:
+            try:
+                choice = input(f"Select interface (1-{len(valid_interfaces)}) or press Enter for auto-detect: ").strip()
+                
+                if choice == "":
+                    # Auto-detect using original method
+                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    s.connect(("8.8.8.8", 80))
+                    ip = s.getsockname()[0]
+                    s.close()
+                    print(f"Auto-detected IP: {ip}")
+                    return ip
+                
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(valid_interfaces):
+                    selected_interface, selected_ip, selected_netmask = valid_interfaces[choice_num - 1]
+                    print(f"Selected: {selected_interface} - {selected_ip}")
+                    return selected_ip
+                else:
+                    print(f"Invalid choice. Please enter a number between 1 and {len(valid_interfaces)}")
+                    
+            except ValueError:
+                print("Invalid input. Please enter a number or press Enter for auto-detect.")
+            except KeyboardInterrupt:
+                print("\nOperation cancelled by user")
+                return None
+                
+    except ImportError:
+        print("netifaces module not found. Using fallback method...")
+        print("Install with: pip install netifaces")
+        # Fallback to original method
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception as e:
+            print(f"Error getting IP address: {e}")
+            return None
     except Exception as e:
-        print(f"Error getting IP address: {e}")
-        return None
+        print(f"Error listing network interfaces: {e}")
+        # Fallback to original method
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception as fallback_e:
+            print(f"Error getting IP address: {fallback_e}")
+            return None
 
 def run_in_new_tab(command):
     """
@@ -169,14 +256,14 @@ def main():
 
     # Prompt the user to connect to Unity
     ip_choice = input("Do you want to connect to Unity? (y/n) ").strip().lower()
-    ros_ip = str(get_ip_address_simple())  # Default ROS_IP
 
     if ip_choice == "y":
-        custom_ip = input(f"Please enter the ROS_IP (press Enter to use default IP {ros_ip}): ").strip()
-        if custom_ip and validate_ip(custom_ip):
-            ros_ip = custom_ip
-        else:
-            print(f"Invalid IP address format. Using the default ROS_IP: {ros_ip}")
+        ros_ip = str(get_ip_address_simple())
+        # custom_ip = input(f"Please enter the ROS_IP (press Enter to use default IP {ros_ip}): ").strip()
+        # if custom_ip and validate_ip(custom_ip):
+        #     ros_ip = custom_ip
+        # else:
+        #     print(f"Invalid IP address format. Using the default ROS_IP: {ros_ip}")
 
     # Initialize an empty list for commands
     commands = []

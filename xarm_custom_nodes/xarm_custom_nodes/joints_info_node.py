@@ -85,8 +85,8 @@ class JointInfoNode(Node):
         # Publish the message
         self.joint_info_publisher.publish(joint_info_msg)
 
-        self.get_logger().info(f'Published joint info: {joint_info_msg.names} at {joint_info_msg.timestamp}')
-        self.get_logger().debug(f'Joint positions: {joint_info_msg.positions}, TCP pose: {self.tcp_position}')
+        # self.get_logger().info(f'Published joint info: {joint_info_msg.names} at {joint_info_msg.timestamp}')
+        # self.get_logger().info(f'Joint positions: {joint_info_msg.positions}, TCP pose: {self.tcp_position}')
 
 def main(args=None):
     rclpy.init(args=args)

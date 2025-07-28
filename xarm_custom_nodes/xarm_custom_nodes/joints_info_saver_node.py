@@ -20,7 +20,7 @@ class JointsInfoSaverNode(Node):
         super().__init__('joint_info_saver_node')
         
         # Initialize variables
-        self.tcp_pose = []
+        self.tcp_position = []
         self.start_time = ''
         self.trigger = True
         
@@ -40,18 +40,18 @@ class JointsInfoSaverNode(Node):
             10
         )
         
-        self.tcp_pose_subscriber = self.create_subscription(
+        self.tcp_position_subscriber = self.create_subscription(
             Pose,
             '/tcp_pose',
-            self.tcp_pose_callback,
+            self.tcp_position_callback,
             10
         )
         
         self.get_logger().info(f'Joint Data Saver Node started - Saving to {self.exec_filename}')
 
-    def tcp_pose_callback(self, msg):
+    def tcp_position_callback(self, msg):
         # Extract TCP pose (position only)
-        self.tcp_pose = [msg.position.x, msg.position.y, msg.position.z]
+        self.tcp_position = [msg.position.x, msg.position.y, msg.position.z]
 
     def joint_info_callback(self, msg):
         # Set start time on first message
@@ -68,13 +68,13 @@ class JointsInfoSaverNode(Node):
         self.save_to_csv(
             msg.names, 
             msg.positions, 
-            self.tcp_pose,
+            self.tcp_position,
             msg.velocities, 
             msg.timestamp,  # Use timestamp from the message
             frame_time
         )
 
-    def save_to_csv(self, joint_names, positions, tcp_pose, joint_velocities, timestamp, time_delta):
+    def save_to_csv(self, joint_names, positions, tcp_position, joint_velocities, timestamp, time_delta):
         if len(joint_names) != len(positions) or len(joint_names) != len(joint_velocities):
             self.get_logger().error("Error: Arrays must be of equal size.")
             return
@@ -82,10 +82,11 @@ class JointsInfoSaverNode(Node):
         with open(self.exec_filename, 'a', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             if csvfile.tell() == 0:  # Check if the file is empty
-                csvwriter.writerow(['Joint Name', 'Joint Position', 'tcp_pose [x, y, z]', 'Joint Velocity', 'Time data is sent', 'Time Delta'])
-            
-            for joint_name, position, velocity in zip(joint_names, positions, joint_velocities):
-                csvwriter.writerow([joint_name, position, tcp_pose, velocity, timestamp, time_delta])
+                csvwriter.writerow(['Joint Name', 'Joint Position', 'tcp position x', 'tcp position y', 'tcp position z', 'Joint Velocity', 'Time data is sent', 'Time Delta'])
+        
+            # Write joint data to CSV
+            for joint_name, position, velocity in zip(joint_names, tcp_position, joint_velocities):
+                csvwriter.writerow([joint_name, position, tcp_position[0], tcp_position[1], tcp_position[2], velocity, timestamp, time_delta])
 
 def main(args=None):
     rclpy.init(args=args)

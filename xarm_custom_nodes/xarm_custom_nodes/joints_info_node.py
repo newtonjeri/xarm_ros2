@@ -24,7 +24,7 @@ class JointInfoNode(Node):
         self.joint_names = []
         self.joint_positions = []
         self.joint_velocities = []
-        self.tcp_pose = []
+        self.tcp_position = []
         
         # Create subscribers
         self.joint_states_subscription = self.create_subscription(
@@ -34,10 +34,10 @@ class JointInfoNode(Node):
             10
         )
         
-        self.tcp_pose_subscriber = self.create_subscription(
+        self.tcp_position_subscriber = self.create_subscription(
             Pose,
             '/tcp_pose',
-            self.tcp_pose_callback,
+            self.tcp_position_callback,
             10
         )
         
@@ -63,9 +63,9 @@ class JointInfoNode(Node):
         joint_positions_deg = np.rad2deg(joint_positions_array)
         self.joint_positions = list(joint_positions_deg)
 
-    def tcp_pose_callback(self, msg):
+    def tcp_position_callback(self, msg):
         # Extract TCP pose (position only)
-        self.tcp_pose = [msg.position.x, msg.position.y, msg.position.z]
+        self.tcp_position = [msg.position.x, msg.position.y, msg.position.z]
 
     def publisher_callback(self):
         # Only publish if we have received joint data
@@ -77,12 +77,16 @@ class JointInfoNode(Node):
         joint_info_msg.names = self.joint_names
         joint_info_msg.positions = self.joint_positions
         joint_info_msg.velocities = self.joint_velocities
+        joint_info_msg.tcp_position = self.tcp_position
         
         # Add timestamp
         joint_info_msg.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         
         # Publish the message
         self.joint_info_publisher.publish(joint_info_msg)
+
+        self.get_logger().info(f'Published joint info: {joint_info_msg.names} at {joint_info_msg.timestamp}')
+        self.get_logger().debug(f'Joint positions: {joint_info_msg.positions}, TCP pose: {self.tcp_position}')
 
 def main(args=None):
     rclpy.init(args=args)

@@ -20,9 +20,12 @@ class JointsInfoSaverNode(Node):
         super().__init__('joint_info_saver_node')
         
         # Initialize variables
-        self.tcp_position = []
+        self.tcp_position_x = 0.0
+        self.tcp_position_y = 0.0
+        self.tcp_position_z = 0.0
         self.start_time = ''
         self.trigger = True
+        self.record_flag = False
         
         # Create the execution directory if it doesn't exist
         self.execution_dir = 'data'
@@ -32,6 +35,14 @@ class JointsInfoSaverNode(Node):
         # File to store joint data
         self.exec_filename = f"{self.execution_dir}/execution_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         
+        
+        self.tcp_position_subscriber = self.create_subscription(
+            Pose,
+            '/tcp_pose',
+            self.tcp_position_callback,
+            10
+        )
+
         # Create subscribers
         self.joint_info_subscription = self.create_subscription(
             JointNamesAndAngles,
@@ -40,18 +51,15 @@ class JointsInfoSaverNode(Node):
             10
         )
         
-        self.tcp_position_subscriber = self.create_subscription(
-            Pose,
-            '/tcp_pose',
-            self.tcp_position_callback,
-            10
-        )
-        
         self.get_logger().info(f'Joint Data Saver Node started - Saving to {self.exec_filename}')
 
     def tcp_position_callback(self, msg):
         # Extract TCP pose (position only)
-        self.tcp_position = [msg.position.x, msg.position.y, msg.position.z]
+        self.tcp_position_x = msg.position.x
+        self.tcp_position_y = msg.position.y
+        self.tcp_position_z = msg.position.z
+
+        self.record_flag = True  # Set flag to indicate TCP position is received
 
     def joint_info_callback(self, msg):
         # Set start time on first message
@@ -63,18 +71,20 @@ class JointsInfoSaverNode(Node):
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         frame_time = datetime.strptime(current_time, "%Y-%m-%d %H:%M:%S.%f") - \
                     datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S.%f")
-        
         # Save data to CSV
-        self.save_to_csv(
-            msg.names, 
-            msg.positions, 
-            self.tcp_position,
-            msg.velocities, 
-            msg.timestamp,  # Use timestamp from the message
-            frame_time
-        )
+        if self.record_flag:
+            self.save_to_csv(
+                msg.names, 
+                msg.positions, 
+                self.tcp_position_x,
+                self.tcp_position_y,
+                self.tcp_position_z,
+                msg.velocities, 
+                msg.timestamp,  # Use timestamp from the message
+                frame_time
+            )
 
-    def save_to_csv(self, joint_names, positions, tcp_position, joint_velocities, timestamp, time_delta):
+    def save_to_csv(self, joint_names, positions, tcp_position_x, tcp_position_y, tcp_position_z, joint_velocities, timestamp, time_delta):
         if len(joint_names) != len(positions) or len(joint_names) != len(joint_velocities):
             self.get_logger().error("Error: Arrays must be of equal size.")
             return
@@ -85,8 +95,8 @@ class JointsInfoSaverNode(Node):
                 csvwriter.writerow(['Joint Name', 'Joint Position', 'tcp position x', 'tcp position y', 'tcp position z', 'Joint Velocity', 'Time data is sent', 'Time Delta'])
         
             # Write joint data to CSV
-            for joint_name, position, velocity in zip(joint_names, tcp_position, joint_velocities):
-                csvwriter.writerow([joint_name, position, tcp_position[0], tcp_position[1], tcp_position[2], velocity, timestamp, time_delta])
+            for joint_name, position, velocity in zip(joint_names, positions, joint_velocities):
+                csvwriter.writerow([joint_name, position, tcp_position_x, tcp_position_y, tcp_position_z, velocity, timestamp, time_delta])
 
 def main(args=None):
     rclpy.init(args=args)

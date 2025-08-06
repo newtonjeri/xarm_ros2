@@ -51,7 +51,8 @@ class ModeSwitcher(Node):
         # Kill the current process based on the mode
         self.get_logger().info("Current mode: " + mode)
         if mode == "MODE-MANUAL":
-            self.kill_processes_by_name(self.moveit_process)
+            # self.kill_processes_by_name(self.moveit_process)
+
             self.start_driver_process()
             if self.process_exist == False:
                 self.run_in_current_terminal("ros2 service call /xarm/motion_enable xarm_msgs/srv/SetInt16ById '{id: 8, data: 1}'")
@@ -65,6 +66,7 @@ class ModeSwitcher(Node):
                 
         elif mode == "MODE-MOVEIT":
             self.kill_processes_by_name(self.driver_process)
+            self.kill_processes_by_name(self.moveit_process)
             self.start_moveit_process()
             if self.process_exist == False:
                 self.get_logger().info("Mode changed to: " + (mode))

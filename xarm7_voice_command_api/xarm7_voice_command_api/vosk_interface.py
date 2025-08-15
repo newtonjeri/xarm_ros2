@@ -1,5 +1,5 @@
 """ 
-Copyright 2024 Virtual Reality Labs DKUT All Rights Reserved.
+Copyright 2024 Virtual Mechatronics Labs DeKUT All Rights Reserved.
  *
  * Software License Agreement (BSD License)
  *

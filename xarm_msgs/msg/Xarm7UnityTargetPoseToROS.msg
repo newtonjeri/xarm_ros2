@@ -1,0 +1,3 @@
+geometry_msgs/Pose target_pose
+xarm_msgs/Xarm7MoveitJoints joints_input
+geometry_msgs/Vector3 robot_arm_rotation

@@ -49,6 +49,8 @@ def launch_setup(context, *args, **kwargs):
     geometry_mesh_tcp_xyz = LaunchConfiguration('geometry_mesh_tcp_xyz', default='"0 0 0"')
     geometry_mesh_tcp_rpy = LaunchConfiguration('geometry_mesh_tcp_rpy', default='"0 0 0"')
 
+    is_sim = LaunchConfiguration('is_sim', default=False)
+
     moveit_config_dump = LaunchConfiguration('moveit_config_dump', default='')
     moveit_config_dump = moveit_config_dump.perform(context)
     moveit_config_dict = yaml.load(moveit_config_dump, Loader=yaml.FullLoader) if moveit_config_dump else {}
@@ -90,6 +92,7 @@ def launch_setup(context, *args, **kwargs):
             geometry_mesh_origin_rpy=geometry_mesh_origin_rpy,
             geometry_mesh_tcp_xyz=geometry_mesh_tcp_xyz,
             geometry_mesh_tcp_rpy=geometry_mesh_tcp_rpy,
+            is_sim=is_sim
         ).to_moveit_configs()
         moveit_config_dict = moveit_config.to_dict()
     

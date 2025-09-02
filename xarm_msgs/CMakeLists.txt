@@ -41,6 +41,20 @@ set(msg_files
   "msg/IOState.msg"
   "msg/CIOState.msg"
   "msg/MoveVelocity.msg"
+  "msg/JointNamesAndAngles.msg"
+  # "msg/Xarm7MoveitJoints.msg"
+  # "msg/Xarm7ROSJointsToUnity.msg"
+  # "msg/Xarm7Trajectory.msg"
+  # "msg/Xarm7UnityRobotJoints.msg"
+  # "msg/Xarm7UnityTargetPoseToROS.msg"
+  "msg/TargetPosition.msg"
+  "msg/AcceptPlan.msg"
+  "msg/GripperState.msg"
+  "msg/MoveNextCommand.msg"
+  "msg/StopCommand.msg"
+  "msg/RobotMode.msg"
+  "msg/RobotStateAndTargetPose.msg"
+  "msg/TimeStamp.msg"
 )
 
 set(srv_dir "srv")

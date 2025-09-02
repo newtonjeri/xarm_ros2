@@ -30,6 +30,8 @@ def launch_setup(context, *args, **kwargs):
     use_sim_time = LaunchConfiguration('use_sim_time', default=False)
     moveit_config_dump = LaunchConfiguration('moveit_config_dump')
     rviz_config = LaunchConfiguration('rviz_config', default='')
+
+    is_sim = LaunchConfiguration('is_sim', default=False)
     
     moveit_config_dump = moveit_config_dump.perform(context)
     moveit_config_dict = yaml.load(moveit_config_dump, Loader=yaml.FullLoader)
@@ -43,6 +45,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[
             moveit_config_dict,
             {'use_sim_time': use_sim_time},
+            {'is_sim': is_sim}
         ],
     )
 
@@ -64,7 +67,8 @@ def launch_setup(context, *args, **kwargs):
                 'robot_description_kinematics': moveit_config_dict['robot_description_kinematics'],
                 'robot_description_planning': moveit_config_dict['robot_description_planning'],
                 'planning_pipelines': moveit_config_dict['planning_pipelines'],
-                'use_sim_time': use_sim_time
+                'use_sim_time': use_sim_time,
+                'is_sim': is_sim
             }
         ],
         condition=IfCondition(show_rviz),

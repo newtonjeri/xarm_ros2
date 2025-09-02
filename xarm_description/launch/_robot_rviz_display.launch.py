@@ -43,6 +43,7 @@ def generate_launch_description():
 
     kinematics_suffix = LaunchConfiguration('kinematics_suffix', default='')
     
+    is_sim = LaunchConfiguration('is_sim', default=False)
     # robot joint state launch
     # xarm_description/launch/_robot_joint_state.launch.py
     robot_joint_state_launch = IncludeLaunchDescription(
@@ -73,6 +74,7 @@ def generate_launch_description():
             'geometry_mesh_tcp_xyz': geometry_mesh_tcp_xyz,
             'geometry_mesh_tcp_rpy': geometry_mesh_tcp_rpy,
             'kinematics_suffix': kinematics_suffix,
+            'is_sim': is_sim,
         }.items(),
     )
 

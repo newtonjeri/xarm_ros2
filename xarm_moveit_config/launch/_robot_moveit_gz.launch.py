@@ -52,6 +52,7 @@ def launch_setup(context, *args, **kwargs):
     geometry_mesh_tcp_xyz = LaunchConfiguration('geometry_mesh_tcp_xyz', default='"0 0 0"')
     geometry_mesh_tcp_rpy = LaunchConfiguration('geometry_mesh_tcp_rpy', default='"0 0 0"')
 
+    is_sim = LaunchConfiguration('is_sim', default=True)
     no_gui_ctrl = LaunchConfiguration('no_gui_ctrl', default=False)
     ros_namespace = LaunchConfiguration('ros_namespace', default='').perform(context)
 
@@ -105,6 +106,7 @@ def launch_setup(context, *args, **kwargs):
         geometry_mesh_origin_rpy=geometry_mesh_origin_rpy,
         geometry_mesh_tcp_xyz=geometry_mesh_tcp_xyz,
         geometry_mesh_tcp_rpy=geometry_mesh_tcp_rpy,
+        is_sim=is_sim
     ).to_moveit_configs()
 
     moveit_config_dump = yaml.dump(moveit_config.to_dict())
@@ -121,6 +123,7 @@ def launch_setup(context, *args, **kwargs):
             'no_gui_ctrl': no_gui_ctrl,
             'show_rviz': 'false',
             'use_sim_time': 'true',
+            'is_sim': is_sim,
             'moveit_config_dump': moveit_config_dump,
         }.items(),
     )

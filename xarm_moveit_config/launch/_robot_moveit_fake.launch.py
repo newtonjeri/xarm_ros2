@@ -56,6 +56,7 @@ def launch_setup(context, *args, **kwargs):
     no_gui_ctrl = LaunchConfiguration('no_gui_ctrl', default=False)
     ros_namespace = LaunchConfiguration('ros_namespace', default='').perform(context)
 
+    is_sim = LaunchConfiguration('is_sim', default=False)
     ros2_control_plugin = 'uf_robot_hardware/UFRobotFakeSystemHardware'
     controllers_name = 'fake_controllers'
     xarm_type = '{}{}'.format(robot_type.perform(context), dof.perform(context) if robot_type.perform(context) in ('xarm', 'lite') else '')
@@ -105,6 +106,7 @@ def launch_setup(context, *args, **kwargs):
         geometry_mesh_origin_rpy=geometry_mesh_origin_rpy,
         geometry_mesh_tcp_xyz=geometry_mesh_tcp_xyz,
         geometry_mesh_tcp_rpy=geometry_mesh_tcp_rpy,
+        is_sim=is_sim,
     ).to_moveit_configs()
     
     # robot description launch

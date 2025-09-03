@@ -61,7 +61,7 @@ def launch_setup(context, *args, **kwargs):
     kinematics_suffix = LaunchConfiguration('kinematics_suffix', default='')
     mesh_suffix = LaunchConfiguration('mesh_suffix', default='stl')
 
-    is_sim = LaunchConfiguration('is_sim', default=False)
+    # is_sim = LaunchConfiguration('is_sim', default=False)
     # robot_description
     robot_description = {
         'robot_description': get_xacro_content(
@@ -103,7 +103,7 @@ def launch_setup(context, *args, **kwargs):
             geometry_mesh_origin_rpy=geometry_mesh_origin_rpy,
             geometry_mesh_tcp_xyz=geometry_mesh_tcp_xyz,
             geometry_mesh_tcp_rpy=geometry_mesh_tcp_rpy,
-            is_sim=is_sim
+            # is_sim=is_sim
         )
     }
     robot_description = yaml.dump(robot_description)

@@ -60,7 +60,7 @@ def launch_setup(context, *args, **kwargs):
     kinematics_suffix = LaunchConfiguration('kinematics_suffix', default='')
 
     use_sim_time = LaunchConfiguration('use_sim_time', default=False)
-    is_sim = LaunchConfiguration('is_sim', default=False)
+    # is_sim = LaunchConfiguration('is_sim', default=False)
     moveit_config_package_name = 'xarm_moveit_config'
     xarm_type = '{}{}'.format(robot_type.perform(context), dof.perform(context) if robot_type.perform(context) in ('xarm', 'lite') else '')
 
@@ -102,7 +102,7 @@ def launch_setup(context, *args, **kwargs):
             'geometry_mesh_tcp_xyz': geometry_mesh_tcp_xyz,
             'geometry_mesh_tcp_rpy': geometry_mesh_tcp_rpy,
             'kinematics_suffix': kinematics_suffix,
-            'is_sim': is_sim,
+            # 'is_sim': is_sim,
         },
         srdf_arguments={
             'prefix': prefix,
@@ -214,6 +214,8 @@ def launch_setup(context, *args, **kwargs):
         'publish_geometry_updates': True,
         'publish_state_updates': True,
         'publish_transforms_updates': True,
+        "publish_robot_description":True, 
+        "publish_robot_description_semantic":True
         # "planning_scene_monitor_options": {
         #     "name": "planning_scene_monitor",
         #     "robot_description": "robot_description",

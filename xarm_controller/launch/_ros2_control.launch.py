@@ -59,7 +59,7 @@ def launch_setup(context, *args, **kwargs):
 
     kinematics_suffix = LaunchConfiguration('kinematics_suffix', default='')
     
-    is_sim = LaunchConfiguration('is_sim', default=False)
+    # is_sim = LaunchConfiguration('is_sim', default=False)
     robot_description = LaunchConfiguration('robot_description', default='')
     ros2_control_params = LaunchConfiguration('ros2_control_params', default='')
     extra_robot_api_params_path = LaunchConfiguration('extra_robot_api_params_path', default='')
@@ -116,7 +116,7 @@ def launch_setup(context, *args, **kwargs):
                 geometry_mesh_origin_rpy=geometry_mesh_origin_rpy,
                 geometry_mesh_tcp_xyz=geometry_mesh_tcp_xyz,
                 geometry_mesh_tcp_rpy=geometry_mesh_tcp_rpy,
-                is_sim=is_sim
+                # is_sim=is_sim
             )
         }
     else:

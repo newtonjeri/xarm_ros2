@@ -56,7 +56,7 @@ def launch_setup(context, *args, **kwargs):
     kinematics_suffix = LaunchConfiguration('kinematics_suffix', default='')
     robot_description = LaunchConfiguration('robot_description', default='')
 
-    is_sim = LaunchConfiguration('is_sim', default=False)
+    # is_sim = LaunchConfiguration('is_sim', default=False)
     if not robot_description.perform(context):
         # robot_description
         robot_description = {
@@ -94,7 +94,7 @@ def launch_setup(context, *args, **kwargs):
                 geometry_mesh_origin_rpy=geometry_mesh_origin_rpy,
                 geometry_mesh_tcp_xyz=geometry_mesh_tcp_xyz,
                 geometry_mesh_tcp_rpy=geometry_mesh_tcp_rpy,
-                is_sim=is_sim
+                # is_sim=is_sim
             )
         }
     else:

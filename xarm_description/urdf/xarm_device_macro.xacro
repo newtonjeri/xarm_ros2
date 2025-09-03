@@ -41,7 +41,6 @@
     robot_sn:='' 
     mesh_suffix:='stl' 
     kinematics_suffix:=''
-    is_sim:=false
     "
     > 
 

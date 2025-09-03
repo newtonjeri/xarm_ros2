@@ -21,7 +21,7 @@ def generate_launch_description():
     add_vacuum_gripper = LaunchConfiguration('add_vacuum_gripper', default=False)
     add_bio_gripper = LaunchConfiguration('add_bio_gripper', default=False)
 
-    is_sim = LaunchConfiguration('is_sim', default=False)    
+    # is_sim = LaunchConfiguration('is_sim', default=False)    
     
     # robot rviz launch
     # xarm_description/launch/_robot_rviz_display.launch.py
@@ -38,7 +38,7 @@ def generate_launch_description():
             'add_bio_gripper': add_bio_gripper,
             'dof': '7',
             'robot_type': 'xarm',
-            'is_sim': is_sim,
+            # 'is_sim': is_sim,
         }.items(),
     )
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="xarm_srdf">
   <xacro:macro name="xarm_macro_srdf" params="prefix:='' dof:=7 robot_type:='xarm'
-    add_gripper:='false' add_vacuum_gripper:='false' add_bio_gripper:='false' add_other_geometry:='false' is_sim:='false'"> 
+    add_gripper:='false' add_vacuum_gripper:='false' add_bio_gripper:='false' add_other_geometry:='false' "> 
     <xacro:if value="${dof == 5}">
       <xacro:include filename="$(find xarm_moveit_config)/srdf/_xarm5_macro.srdf.xacro" />
       <xacro:xarm5_macro_srdf prefix="${prefix}" 

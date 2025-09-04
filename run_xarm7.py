@@ -234,12 +234,10 @@ def kill_all():
         "ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py",
         "ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py",
         "ros2 launch xarm_custom_nodes custom_nodes.launch.py",
-        "ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
-        "ros2 run moveit_nodes_pkg xarm7_mover_node",
+        "ros2 launch moveit_nodes_pkg complete_xarm_system.launch.py",
         "ros2 run moveit_nodes_pkg update_planning_scene_node",
-        "ros2 run moveit_nodes_pkg xarm_gripper_node",
-        "ros2 launch moveit_nodes_pkg start_container.launch.py",
-        "ros2 launch moveit_nodes_pkg experiment002.launch.py",
+        # "ros2 launch moveit_nodes_pkg start_container.launch.py",
+        # "ros2 launch moveit_nodes_pkg experiment002.launch.py",
         "ros2 launch xarm_api xarm7_driver.launch.py",
     ]
 
@@ -290,12 +288,13 @@ def main():
     # Common commands for both simulation and real robot
     commands.extend([
         f"cd {workspace_folder}; source install/setup.bash; ros2 launch xarm_custom_nodes custom_nodes.launch.py",
-        f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg xarm7_mover_node",
-        f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg xarm_gripper_node",
-        f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
+        # f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg xarm7_mover_node",
+        # f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg xarm_gripper_node",
+        # f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
+        f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg complete_xarm_system.launch.py",
         f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg update_planning_scene_node",
-        f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg start_container.launch.py",
-        f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg experiment002.launch.py",
+        # f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg start_container.launch.py",
+        # f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg experiment002.launch.py",
     ])
 
     # Run each command in a new tab

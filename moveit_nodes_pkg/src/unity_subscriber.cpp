@@ -42,7 +42,10 @@ class UnitySubscriberCppNode
 public:
   UnitySubscriberCppNode(rclcpp::Node::SharedPtr &node) : node_(node)
   {
-    node_->declare_parameter<std::string>("group_name", "xarm7");
+    // Declare parameter only if not already declared
+    if (!node_->has_parameter("group_name")) {
+      node_->declare_parameter<std::string>("group_name", "xarm7");
+    }
 
     std::string group_name;
     node_->get_parameter("group_name", group_name);

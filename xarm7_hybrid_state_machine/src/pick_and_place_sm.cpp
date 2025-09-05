@@ -11,6 +11,7 @@ using namespace std::chrono_literals;
 
 void exit_sig_handler(int signum)
 {
+    (void)signum; // Suppress unused parameter warning
     rclcpp::shutdown();
     fprintf(stderr, "[pick_and_place_sm_node] Ctrl-C caught, shutting down...\n");
     exit(0);  // Use 0 for clean exit
@@ -23,7 +24,13 @@ namespace simple_state_machine
         : Node("pick_and_place_sm_node", options),
           current_state(IDLE),
           previous_state(IDLE),
-          gripper_state("FREE")
+          current_xarm_state(XarmState::SLEEPING),
+          current_xarm_mode(XarmMode::POSITION),
+          xarm_error_code(0),
+          xarm_warning_code(0),
+          robot_state_received(false),
+          gripper_state("FREE"),
+          current_command(static_cast<uint8_t>(IDLE))
     {
         // Set up signal handler
         signal(SIGINT, exit_sig_handler);
@@ -34,10 +41,14 @@ namespace simple_state_machine
 
         stop_callback_group_ = this->create_callback_group(
             rclcpp::CallbackGroupType::MutuallyExclusive);
+
+        robot_state_callback_group_ = this->create_callback_group(
+            rclcpp::CallbackGroupType::MutuallyExclusive);
             
         
         // Initialize publishers and subscribers
         mode_publisher = this->create_publisher<xarm_msgs::msg::RobotMode>("/robot_mode", 10);
+        state_publisher = this->create_publisher<std_msgs::msg::UInt8>("/xarm7_state_machine_state", 10);
 
         auto state_sub_options = rclcpp::SubscriptionOptions();
         state_sub_options.callback_group = state_callback_group_;
@@ -52,6 +63,13 @@ namespace simple_state_machine
             "/xarm7_stop_command", 10,
             std::bind(&PickAndPlaceStateMachine::stopCallback, this, std::placeholders::_1),
             stop_command_sub_options);
+
+        auto robot_state_sub_options = rclcpp::SubscriptionOptions();
+        robot_state_sub_options.callback_group = robot_state_callback_group_;
+        robot_state_subscriber_ = this->create_subscription<xarm_msgs::msg::RobotMsg>(
+            "/xarm/robot_states", 10,
+            std::bind(&PickAndPlaceStateMachine::robotStateCallback, this, std::placeholders::_1),
+            robot_state_sub_options);
 
         // Initialize default pose
         previous_pose.position.x = 0.4912;
@@ -85,7 +103,8 @@ namespace simple_state_machine
         execution_timer = this->create_wall_timer(
             100ms, std::bind(&PickAndPlaceStateMachine::executeStateMachine, this));
 
-        RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: MoveIt interfaces initialized", getStateName(current_state).c_str());
+        RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: MoveIt interfaces initialized", 
+                   getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
         initialization_timer->cancel();
         enterState(IDLE);
     }
@@ -163,7 +182,8 @@ namespace simple_state_machine
     void PickAndPlaceStateMachine::enterState(STATES new_state)
     {
         if(new_state != previous_state){
-            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Transitioning from %s to %s", 
+            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Transitioning from %s to %s", 
+                        getXarmModeName(current_xarm_mode).c_str(),
                         getStateName(current_state).c_str(),
                         getStateName(previous_state).c_str(),
                         getStateName(new_state).c_str());
@@ -172,11 +192,24 @@ namespace simple_state_machine
         previous_state = current_state;
         current_state = new_state;
 
+        // Publish state change for synchronization with other nodes
+        std_msgs::msg::UInt8 state_msg;
+        state_msg.data = static_cast<uint8_t>(current_state);
+        state_publisher->publish(state_msg);
+
         // State-specific entry actions
         xarm_msgs::msg::RobotMode mode_msg;
 
         switch (current_state)
         {
+            case MANUAL_MODE:
+                // Set robot to TEACHING_JOINT mode when entering MANUAL_MODE
+                RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Setting robot to TEACHING_JOINT mode", 
+                           getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
+                mode_msg.data = 2; // TEACHING_JOINT mode
+                mode_publisher->publish(mode_msg);
+                break;
+                
             case ERROR:
                 handleError();
                 break;
@@ -185,7 +218,38 @@ namespace simple_state_machine
                 break;
         }
         
-        RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s", getStateName(current_state).c_str());
+        RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s", 
+                   getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
+    }
+
+    void PickAndPlaceStateMachine::robotStateCallback(const xarm_msgs::msg::RobotMsg::SharedPtr msg)
+    {
+        current_xarm_state = static_cast<XarmState>(msg->state);
+        current_xarm_mode = static_cast<XarmMode>(msg->mode);
+        xarm_error_code = msg->err;
+        xarm_warning_code = msg->warn;
+        robot_state_received = true;
+
+        // Log significant state changes
+        static XarmState last_state = XarmState::SLEEPING;
+        static int16_t last_error = 0;
+        
+        if (current_xarm_state != last_state) {
+            RCLCPP_INFO(this->get_logger(), "Xarm state changed: %s -> %s", 
+                        getXarmStateName(last_state).c_str(),
+                        getXarmStateName(current_xarm_state).c_str());
+            last_state = current_xarm_state;
+        }
+
+        if (xarm_error_code != last_error && xarm_error_code != 0) {
+            RCLCPP_ERROR(this->get_logger(), "Xarm error detected: %d", xarm_error_code);
+            last_error = xarm_error_code;
+        }
+
+        RCLCPP_DEBUG(this->get_logger(), "Xarm Status - State: %s, Mode: %s, Error: %d, Warning: %d",
+                    getXarmStateName(current_xarm_state).c_str(),
+                    getXarmModeName(current_xarm_mode).c_str(),
+                    xarm_error_code, xarm_warning_code);
     }
 
     void PickAndPlaceStateMachine::stateCallback(const xarm_msgs::msg::RobotStateAndTargetPose::SharedPtr msg)
@@ -194,14 +258,19 @@ namespace simple_state_machine
         current_command = msg->robot_next_state;
         target_pose_1 = msg->target_pose_1;
         target_pose_2 = msg->target_pose_2;
-        RCLCPP_DEBUG(this->get_logger(), "XARM7-STATE: %s: Received new command: %d", getStateName(current_state).c_str(), current_command);
+        RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Received new command: %d (%s)", 
+                    getXarmModeName(current_xarm_mode).c_str(),
+                    getStateName(current_state).c_str(), 
+                    current_command,
+                    getStateName(static_cast<STATES>(current_command)).c_str());
     }
 
     void PickAndPlaceStateMachine::stopCallback(const xarm_msgs::msg::StopCommand::SharedPtr msg)
     {
         bool stop_command = msg->stop_command_state;
         if (stop_command){
-            RCLCPP_ERROR(this->get_logger(), "XARM7-STATE: %s: RECEIVED STOP COMMAND!!!", getStateName(current_state).c_str());
+            RCLCPP_ERROR(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: RECEIVED STOP COMMAND!!!", 
+                        getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
             current_state = ERROR;
             current_command = (uint8_t)STATES::ERROR;
 
@@ -209,7 +278,8 @@ namespace simple_state_machine
             xarm_gripper_object->move_group->stop();
         }
         else{
-            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Normal operation", getStateName(current_state).c_str());
+            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Normal operation", 
+                       getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
         }
     }
 
@@ -218,8 +288,12 @@ namespace simple_state_machine
         switch (current_state)
         {
         case IDLE:
-            // Delegate all idle state transitions to the idle() function
-            idle(current_command);
+            // Only process commands from external sources (not just the timer loop)
+            if (command_source == CommandSource::STATE_TOPIC) {
+                idle(current_command);
+                // Reset command source after processing
+                command_source = CommandSource::INTERNAL;
+            }
             break;
 
         case MOVING:
@@ -235,7 +309,12 @@ namespace simple_state_machine
             break;
 
         case MANUAL_MODE:
-            manual_mode(current_command);
+            // Only process transition commands from external sources
+            if (command_source == CommandSource::STATE_TOPIC) {
+                manual_mode(current_command);
+                // Reset command source after processing
+                command_source = CommandSource::INTERNAL;
+            }
             break;
 
         case FINAL:
@@ -250,7 +329,8 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::handleCompletion()
     {
-        RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Operation completed successfully", getStateName(current_state).c_str());
+        RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Operation completed successfully", 
+                   getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
         gripper_state = "FREE";
         previous_state = IDLE;
         current_state = IDLE;
@@ -260,24 +340,46 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::handleError()
     {
-        RCLCPP_ERROR(this->get_logger(), "Error encountered in state %s",
-                     getStateName(previous_state).c_str());
+        RCLCPP_ERROR(this->get_logger(), "Error encountered in state %s - Robot state: %s, Error code: %d",
+                     getStateName(previous_state).c_str(),
+                     getXarmStateName(current_xarm_state).c_str(),
+                     xarm_error_code);
 
         // Stop all movements
         xarm7_object->move_group->stop();
         xarm_gripper_object->move_group->stop();
+        
+        // Reset internal state
         gripper_state = "FREE";
         previous_state = IDLE;
         current_state = IDLE;
         current_command = 0;
-        enterState(IDLE);
+        
+        // Try to set robot back to safe mode
+        xarm_msgs::msg::RobotMode mode_msg;
+        mode_msg.data = 0; // POSITION mode
+        mode_publisher->publish(mode_msg);
+        
+        // Wait for robot state to potentially recover
+        rclcpp::sleep_for(std::chrono::milliseconds(1000));
+        
+        // Only return to IDLE if robot has recovered
+        if (hasRobotError()) {
+            RCLCPP_WARN(this->get_logger(), "Robot still has error after recovery attempt");
+            // Stay in error state, don't transition to IDLE
+            current_state = ERROR;
+        } else {
+            RCLCPP_INFO(this->get_logger(), "Robot state recovered, transitioning to IDLE");
+            enterState(IDLE);
+        }
     }
 
     void PickAndPlaceStateMachine::idle(uint8_t next_state)
     {
 
         if(previous_state == MANUAL_MODE){
-            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: IDLE state entered from MANUAL_MODE", getStateName(current_state).c_str());
+            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: IDLE state entered from MANUAL_MODE", 
+                       getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
             // Publish 0 for MOVEIT MODE to robot state 
             xarm_msgs::msg::RobotMode mode_msg;
             mode_msg.data = 0;
@@ -286,8 +388,28 @@ namespace simple_state_machine
             return;
         }
 
-        // 2. Validate Requested Transition
+        // 2. Check robot state and handle errors
+        if (hasRobotError()) {
+            RCLCPP_ERROR(this->get_logger(), "Robot error detected in IDLE state (code: %d), transitioning to ERROR", xarm_error_code);
+            enterState(ERROR);
+            return;
+        }
+
+        // 3. Only process transitions if we have a valid command from external source
+        // If next_state is IDLE (0), and we're already in IDLE, don't process transition
+        if (next_state == static_cast<uint8_t>(IDLE) && current_state == IDLE) {
+            // Stay in IDLE - no action needed
+            return;
+        }
+
+        // 4. Validate Requested Transition
         STATES requested_state = static_cast<STATES>(next_state);
+
+        // Check if the requested state is valid (not UNKNOWN)
+        if (getStateName(requested_state) == "UNKNOWN") {
+            RCLCPP_DEBUG(this->get_logger(), "Ignoring invalid command value: %d", next_state);
+            return;
+        }
 
         if (!isValidTransition(requested_state))
         {
@@ -297,7 +419,16 @@ namespace simple_state_machine
             return;
         }
 
-        // 3. Handle Special Cases
+        // 5. Check robot state compatibility before transitioning
+        if (!shouldTransitionBasedOnRobotState(requested_state)) {
+            RCLCPP_WARN(this->get_logger(), 
+                        "Robot state (%s) not compatible with requested transition to %s",
+                        getXarmStateName(current_xarm_state).c_str(),
+                        getStateName(requested_state).c_str());
+            return;
+        }
+
+        // 6. Handle Special Cases
         if (requested_state == FINAL)
         {
             RCLCPP_INFO(this->get_logger(),
@@ -307,19 +438,25 @@ namespace simple_state_machine
             return;
         }
 
-        // 4. Normal Transition Handling
+        // 7. Normal Transition Handling
         switch (requested_state)
         {
         case IDLE:
-            // RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Already in IDLE state");
+            // Already in IDLE - no action needed
             break;
         case MOVING:
-            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Starting normal operation sequence", getStateName(current_state).c_str());
+            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Starting normal operation sequence - Robot state: %s", 
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str(),
+                        getXarmStateName(current_xarm_state).c_str());
             enterState(MOVING);
             break;
 
         case MANUAL_MODE:
-            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Entering manual control mode", getStateName(current_state).c_str());
+            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Entering manual control mode - Robot state: %s", 
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str(),
+                        getXarmStateName(current_xarm_state).c_str());
             enterState(MANUAL_MODE);
             break;
 
@@ -338,14 +475,22 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::moving(geometry_msgs::msg::Pose target_pose_1, geometry_msgs::msg::Pose target_pose_2)
     {
-        // 1. Entry Actions
+        // 1. Check robot state before attempting movement
+        if (!shouldTransitionBasedOnRobotState(MOVING)) {
+            RCLCPP_ERROR(this->get_logger(), "Cannot execute movement due to robot state");
+            enterState(ERROR);
+            return;
+        }
+
+        // 2. Entry Actions
         RCLCPP_INFO(this->get_logger(),
-                    "MOVING to pose (x: %.3f, y: %.3f, z: %.3f)",
+                    "MOVING to pose (x: %.3f, y: %.3f, z: %.3f) - Robot state: %s",
                     target_pose_1.position.x,
                     target_pose_1.position.y,
-                    target_pose_1.position.z);
+                    target_pose_1.position.z,
+                    getXarmStateName(current_xarm_state).c_str());
 
-        // 2. Execute Movement
+        // 3. Execute Movement
         bool success = xarm7_object->planToTargetPose(target_pose_1, false);
         if (!success)
         {
@@ -358,7 +503,29 @@ namespace simple_state_machine
             return;
         }else{
 
-            // 3. Determine Next State
+            // 4. Wait for robot to finish movement before determining next state
+            // Give some time for the robot state to update to RUNNING
+            rclcpp::sleep_for(std::chrono::milliseconds(100));
+            
+            // Wait for movement completion (robot goes from RUNNING back to SLEEPING)
+            auto start_time = this->now();
+            auto timeout = std::chrono::seconds(10); // 10 second timeout
+            
+            while (isRobotMoving() && (this->now() - start_time) < rclcpp::Duration(timeout)) {
+                rclcpp::sleep_for(std::chrono::milliseconds(50));
+                rclcpp::spin_some(shared_from_this());
+            }
+            
+            // Check if movement completed successfully
+            if (isRobotMoving()) {
+                RCLCPP_WARN(this->get_logger(), "Movement timeout - robot still moving");
+            } else if (hasRobotError()) {
+                RCLCPP_ERROR(this->get_logger(), "Robot error detected after movement");
+                enterState(ERROR);
+                return;
+            }
+
+            // 5. Determine Next State based on movement completion
             STATES next = MOVING; // Default to state moving
 
             // Check for special pose conditions
@@ -375,8 +542,6 @@ namespace simple_state_machine
                 next = IDLE;
             }else if (isFinalPose(target_pose_1, target_pose_2)){
                 next = FINAL;
-            // }else if(current_command == MOVING){
-            //     next = MOVING;
             }else{
                 next = IDLE;
                 current_command = IDLE;
@@ -587,37 +752,80 @@ namespace simple_state_machine
         // 1. Entry Actions (only execute on first entry)
         if (previous_state != MANUAL_MODE)
         {
-            RCLCPP_INFO(this->get_logger(), "XARM7-STATE: %s: Entering MANUAL_MODE", getStateName(current_state).c_str());
-
-            // Publish manual mode command (2)
-            xarm_msgs::msg::RobotMode mode_msg;
-            mode_msg.data = 2; // Manual mode
-            mode_publisher->publish(mode_msg);
-            enterState(MANUAL_MODE);
+            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Entered MANUAL_MODE from %s - Robot will be set to TEACHING_JOINT mode", 
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str(),
+                        getStateName(previous_state).c_str());
+            // Entry actions are handled in enterState() function
             return;
         }
 
-        // 2. Only process transitions if they come from the state topic
-        // (Ignore the next_state parameter unless it's a fresh command)
-
-        if (command_source == CommandSource::STATE_TOPIC)
-        {
-            STATES requested_state = static_cast<STATES>(next_state);
-            
-            if(requested_state == MANUAL_MODE){
-                // Do nothing
-            }
-            else if (isValidTransition(requested_state))
-            {
-                enterState(requested_state);
-            }
-            else
-            {
-                RCLCPP_WARN(this->get_logger(),
-                            "Invalid transition from MANUAL_MODE to %s",
-                            getStateName(requested_state).c_str());
-            }
+        // 2. Monitor robot state while in manual mode
+        if (hasRobotError()) {
+            RCLCPP_ERROR(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Robot error in MANUAL_MODE (code: %d), transitioning to ERROR", 
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str(),
+                        xarm_error_code);
+            enterState(ERROR);
+            return;
         }
+
+        // 3. Only process transitions if they come from external sources (state topic)
+        STATES requested_state = static_cast<STATES>(next_state);
+        
+        // Check if the requested state is valid (not UNKNOWN)
+        if (getStateName(requested_state) == "UNKNOWN") {
+            RCLCPP_DEBUG(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Ignoring invalid command value: %d", 
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str(),
+                        next_state);
+            return;
+        }
+        
+        // If staying in manual mode, no action needed
+        if(requested_state == MANUAL_MODE){
+            RCLCPP_DEBUG(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Staying in MANUAL_MODE", 
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str());
+            return;
+        }
+        
+        // Validate transition
+        if (!isValidTransition(requested_state)) {
+            RCLCPP_WARN(this->get_logger(),
+                        "MODE: %s -- XARM7-STATE: %s: Invalid transition from MANUAL_MODE to %s",
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str(),
+                        getStateName(requested_state).c_str());
+            return;
+        }
+        
+        // Check robot state compatibility
+        if (!shouldTransitionBasedOnRobotState(requested_state)) {
+            RCLCPP_WARN(this->get_logger(),
+                        "MODE: %s -- XARM7-STATE: %s: Robot state (%s) not compatible with transition to %s",
+                        getXarmModeName(current_xarm_mode).c_str(),
+                        getStateName(current_state).c_str(),
+                        getXarmStateName(current_xarm_state).c_str(),
+                        getStateName(requested_state).c_str());
+            return;
+        }
+
+        // When leaving manual mode, return to POSITION mode first
+        RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Leaving MANUAL_MODE, transitioning to %s", 
+                    getXarmModeName(current_xarm_mode).c_str(),
+                    getStateName(current_state).c_str(),
+                    getStateName(requested_state).c_str());
+        
+        xarm_msgs::msg::RobotMode mode_msg;
+        mode_msg.data = 0; // POSITION mode
+        mode_publisher->publish(mode_msg);
+        RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Set robot back to POSITION mode", 
+                    getXarmModeName(current_xarm_mode).c_str(),
+                    getStateName(current_state).c_str());
+        
+        // Transition to the requested state
+        enterState(requested_state);
     }
 
     std::string PickAndPlaceStateMachine::getStateName(STATES state)
@@ -641,6 +849,102 @@ namespace simple_state_machine
         default:
             return "UNKNOWN";
         }
+    }
+
+    std::string PickAndPlaceStateMachine::getXarmStateName(XarmState state)
+    {
+        switch (state)
+        {
+        case XarmState::RUNNING:
+            return "RUNNING";
+        case XarmState::SLEEPING:
+            return "SLEEPING";
+        case XarmState::PAUSED:
+            return "PAUSED";
+        case XarmState::STOPPED:
+            return "STOPPED";
+        case XarmState::CONFIG_CHANGED:
+            return "CONFIG_CHANGED";
+        default:
+            return "UNKNOWN";
+        }
+    }
+
+    std::string PickAndPlaceStateMachine::getXarmModeName(XarmMode mode)
+    {
+        switch (mode)
+        {
+        case XarmMode::POSITION:
+            return "POSITION";
+        case XarmMode::SERVOJ:
+            return "SERVOJ";
+        case XarmMode::TEACHING_JOINT:
+            return "TEACHING_JOINT";
+        default:
+            return "UNKNOWN";
+        }
+    }
+
+    bool PickAndPlaceStateMachine::isRobotReady()
+    {
+        if (!robot_state_received) {
+            RCLCPP_WARN(this->get_logger(), "No robot state received yet");
+            return false;
+        }
+        
+        // Robot is ready if it's in SLEEPING state with no errors
+        return (current_xarm_state == XarmState::SLEEPING && xarm_error_code == 0);
+    }
+
+    bool PickAndPlaceStateMachine::isRobotMoving()
+    {
+        return (current_xarm_state == XarmState::RUNNING);
+    }
+
+    bool PickAndPlaceStateMachine::hasRobotError()
+    {
+        return (xarm_error_code != 0 || current_xarm_state == XarmState::STOPPED);
+    }
+
+    bool PickAndPlaceStateMachine::shouldTransitionBasedOnRobotState(STATES intended_state)
+    {
+        // Check for error conditions first
+        if (hasRobotError()) {
+            RCLCPP_ERROR(this->get_logger(), "Robot has error (code: %d) or is stopped, cannot transition to %s", 
+                         xarm_error_code, getStateName(intended_state).c_str());
+            return false;
+        }
+
+        // Check state-specific conditions
+        switch (intended_state) {
+            case MOVING:
+            case PICKING:
+            case PLACING:
+                // Movement states require robot to be ready or already moving
+                if (!isRobotReady() && !isRobotMoving()) {
+                    RCLCPP_WARN(this->get_logger(), "Robot not ready for movement (state: %s), cannot transition to %s",
+                                getXarmStateName(current_xarm_state).c_str(), getStateName(intended_state).c_str());
+                    return false;
+                }
+                break;
+                
+            case MANUAL_MODE:
+                // Manual mode needs the robot to be ready (not necessarily TEACHING_JOINT mode, we'll set that)
+                if (current_xarm_state == XarmState::STOPPED || current_xarm_state == XarmState::CONFIG_CHANGED) {
+                    RCLCPP_WARN(this->get_logger(), "Robot not available for manual mode (state: %s)",
+                                getXarmStateName(current_xarm_state).c_str());
+                    return false;
+                }
+                break;
+                
+            case IDLE:
+            case FINAL:
+            case ERROR:
+                // These states can be entered regardless of robot state
+                break;
+        }
+
+        return true;
     }
 
 } // namespace simple_state_machine

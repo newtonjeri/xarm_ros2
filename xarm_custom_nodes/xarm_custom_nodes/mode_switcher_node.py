@@ -11,6 +11,7 @@ import rclpy
 from rclpy.node import Node
 from xarm_msgs.srv import SetInt16  # Import the service message
 from xarm_msgs.msg import RobotMode
+from std_msgs.msg import UInt8
 import subprocess
 import shlex
 import psutil
@@ -23,16 +24,23 @@ class ModeSwitcher(Node):
         super().__init__('mode_switcher')
 
         self.process_exist: bool = False
+        self.state_machine_state = 0  # Track state machine state
+        self.state_names = {
+            0: "IDLE", 1: "MOVING", 2: "PICKING", 3: "PLACING", 
+            4: "MANUAL_MODE", 5: "FINAL", 6: "ERROR"
+        }
 
-        # Create a subscriber 
+        # Create subscribers 
         self.mode_subscriber = self.create_subscription(RobotMode, "/robot_mode", self.mode_callback, 10)
+        self.state_machine_subscriber = self.create_subscription(UInt8, "/xarm7_state_machine_state", self.state_machine_callback, 10)
         
         # Initialize process variables 
         self.moveit_process = "ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py"
         # self.moveit_process = "ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py"
         self.driver_process = "ros2 launch xarm_api xarm7_driver.launch.py"
         self.current_mode = "MODE-MOVEIT"
-        self.get_logger().info("Mode Switcher node started")
+        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Mode Switcher node started" % (
+                              self.current_mode, self.state_names.get(self.state_machine_state, "UNKNOWN")))
         self.switch_processes(self.current_mode)
 
     def mode_callback(self, msg):
@@ -41,15 +49,28 @@ class ModeSwitcher(Node):
         elif msg.data == 2:
             self.current_mode = "MODE-MANUAL"
         else:
-            self.get_logger().error("Invalid mode: " + str(msg.data))
+            self.get_logger().error("MODE: %s -- STATE-MACHINE: %s -- Invalid mode: %s" % (
+                                  self.current_mode, 
+                                  self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                                  str(msg.data)))
             return
 
         # Switch processes based on the mode
         self.switch_processes(self.current_mode)
 
+    def state_machine_callback(self, msg):
+        """Callback to track state machine state for synchronization"""
+        self.state_machine_state = msg.data
+        self.get_logger().debug("MODE: %s -- STATE-MACHINE: %s -- State machine state updated" % (
+                              self.current_mode, 
+                              self.state_names.get(self.state_machine_state, "UNKNOWN")))
+
     def switch_processes(self, mode):
         # Kill the current process based on the mode
-        self.get_logger().info("Current mode: " + mode)
+        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Current mode: %s" % (
+                              mode, 
+                              self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                              mode))
         if mode == "MODE-MANUAL":
             # self.kill_processes_by_name(self.moveit_process)
 
@@ -60,36 +81,57 @@ class ModeSwitcher(Node):
                     self.run_in_current_terminal("ros2 service call /xarm/set_mode xarm_msgs/srv/SetInt16 '{data: 2}'")
                     self.run_in_current_terminal("ros2 service call /xarm/set_state xarm_msgs/srv/SetInt16 '{data: 0}'")
                 
-                self.get_logger().info("Mode changed to: " + (mode))
+                self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Mode changed to: %s" % (
+                                     mode, 
+                                     self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                                     mode))
             else:
-                self.get_logger().warn("A similar process is already running")
+                self.get_logger().warn("MODE: %s -- STATE-MACHINE: %s -- A similar process is already running" % (
+                                     mode, 
+                                     self.state_names.get(self.state_machine_state, "UNKNOWN")))
                 
         elif mode == "MODE-MOVEIT":
             self.kill_processes_by_name(self.driver_process)
             self.kill_processes_by_name(self.moveit_process)
             self.start_moveit_process()
             if self.process_exist == False:
-                self.get_logger().info("Mode changed to: " + (mode))
+                self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Mode changed to: %s" % (
+                                     mode, 
+                                     self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                                     mode))
             else:
-                self.get_logger().warn("A similar process is already running")
+                self.get_logger().warn("MODE: %s -- STATE-MACHINE: %s -- A similar process is already running" % (
+                                     mode, 
+                                     self.state_names.get(self.state_machine_state, "UNKNOWN")))
         else:
-            self.get_logger().error("Invalid mode: " + (mode))
+            self.get_logger().error("MODE: %s -- STATE-MACHINE: %s -- Invalid mode: %s" % (
+                                  mode, 
+                                  self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                                  mode))
 
     def start_moveit_process(self):
         # Start the moveit_process
-        self.get_logger().info("Starting moveit_process...")
+        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Starting moveit_process..." % (
+                              self.current_mode, 
+                              self.state_names.get(self.state_machine_state, "UNKNOWN")))
         self.moveit_process_full = f" cd {workspace_folder}; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py add_gripper:=true robot_ip:={robot_ip}"
         # self.moveit_process_full = f" cd {workspace_folder}; source install/setup.bash; ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py add_gripper:=true"
     
         self.run_in_new_tab(self.moveit_process_full)
-        self.get_logger().info("Running moveit_process...")
+        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Running moveit_process..." % (
+                              self.current_mode, 
+                              self.state_names.get(self.state_machine_state, "UNKNOWN")))
     
     def start_driver_process(self):
         # Start the driver_process
-        self.get_logger().info("Starting driver_process...")
+        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Starting driver_process..." % (
+                              self.current_mode, 
+                              self.state_names.get(self.state_machine_state, "UNKNOWN")))
         self.driver_process_full = f" cd {workspace_folder}; source install/setup.bash; ros2 launch xarm_api xarm7_driver.launch.py report_type:=normal robot_ip:={robot_ip}"
         self.run_in_new_tab(self.driver_process_full)
-        self.get_logger().info("Running driver_process...")
+        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Running driver_process..." % (
+                              self.current_mode, 
+                              self.state_names.get(self.state_machine_state, "UNKNOWN")))
         
     
     def run_in_new_tab(self, command):
@@ -119,15 +161,24 @@ class ModeSwitcher(Node):
         if not ros2_launch_command:
             return False  # No "ros2 launch" command found
         
-        self.get_logger().info("ros2 launch command: " + ros2_launch_command)
+        self.get_logger().debug("MODE: %s -- STATE-MACHINE: %s -- ros2 launch command: %s" % (
+                               self.current_mode, 
+                               self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                               ros2_launch_command))
 
         # Extract the package name and launch file name from the "ros2 launch" command
         command_parts = shlex.split(ros2_launch_command)
         if len(command_parts) >= 4 and command_parts[1] == "launch":
             target_package = command_parts[2]  # Extract the package name (e.g., "xarm_api")
             target_launch_file = command_parts[3]  # Extract the launch file name (e.g., "xarm7_driver.launch.py")
-            self.get_logger().info("target_package: " + target_package)
-            self.get_logger().info("target_launch_file: " + target_launch_file)
+            self.get_logger().debug("MODE: %s -- STATE-MACHINE: %s -- target_package: %s" % (
+                                   self.current_mode, 
+                                   self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                                   target_package))
+            self.get_logger().debug("MODE: %s -- STATE-MACHINE: %s -- target_launch_file: %s" % (
+                                   self.current_mode, 
+                                   self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                                   target_launch_file))
         else:
             target_package = None
             target_launch_file = None

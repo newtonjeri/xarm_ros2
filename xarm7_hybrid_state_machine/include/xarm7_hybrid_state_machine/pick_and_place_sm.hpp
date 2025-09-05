@@ -14,9 +14,11 @@
 #include <set>
 
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/u_int8.hpp"
 #include "xarm_msgs/msg/robot_mode.hpp"
 #include "xarm_msgs/msg/robot_state_and_target_pose.hpp"
 #include "xarm_msgs/msg/stop_command.hpp"
+#include "xarm_msgs/msg/robot_msg.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "moveit_include.hpp"
 
@@ -33,11 +35,29 @@ namespace simple_state_machine
     {
         IDLE = 0,
         MOVING = 1,
-        PICKING = 2,
-        PLACING = 3,
+        PICKING = 2,      // Derived from MOVING state
+        PLACING = 3,      // Derived from MOVING state
         MANUAL_MODE = 4,
         FINAL = 5,
         ERROR = 6
+    };
+
+    // Xarm robot states (from RobotMsg)
+    enum class XarmState : int16_t 
+    {
+        RUNNING = 1,        // executing motion command
+        SLEEPING = 2,       // not in execution, but ready to move
+        PAUSED = 3,         // paused in the middle of unfinished motion
+        STOPPED = 4,        // not ready for any motion commands
+        CONFIG_CHANGED = 5  // system configuration or mode changed, not ready for motion commands
+    };
+
+    // Xarm robot modes (from RobotMsg)
+    enum class XarmMode : int16_t
+    {
+        POSITION = 0,        // position control by xarm controller box, execute api standard commands
+        SERVOJ = 1,          // Immediate execution towards received joint space target, like a step response
+        TEACHING_JOINT = 2   // Gravity compensated mode, easy for teaching
     };
 
     class PickAndPlaceStateMachine : public rclcpp::Node
@@ -62,8 +82,10 @@ namespace simple_state_machine
 
         // ROS interfaces
         rclcpp::Publisher<xarm_msgs::msg::RobotMode>::SharedPtr mode_publisher;
+        rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr state_publisher;
         rclcpp::Subscription<xarm_msgs::msg::RobotStateAndTargetPose>::SharedPtr state_subscriber;
         rclcpp::Subscription<xarm_msgs::msg::StopCommand>::SharedPtr stop_command_subscriber_;
+        rclcpp::Subscription<xarm_msgs::msg::RobotMsg>::SharedPtr robot_state_subscriber_;
         rclcpp::TimerBase::SharedPtr execution_timer;
         rclcpp::TimerBase::SharedPtr initialization_timer;
 
@@ -77,6 +99,13 @@ namespace simple_state_machine
         rclcpp::Time state_start_time;
         std::chrono::seconds state_timeout;
 
+        // Xarm robot state tracking
+        XarmState current_xarm_state;
+        XarmMode current_xarm_mode;
+        int16_t xarm_error_code;
+        int16_t xarm_warning_code;
+        bool robot_state_received;
+
         // Operation variables
         geometry_msgs::msg::Pose target_pose_1;
         geometry_msgs::msg::Pose target_pose_2;
@@ -87,6 +116,7 @@ namespace simple_state_machine
         //
         rclcpp::CallbackGroup::SharedPtr state_callback_group_;
         rclcpp::CallbackGroup::SharedPtr stop_callback_group_;
+        rclcpp::CallbackGroup::SharedPtr robot_state_callback_group_;
         std::shared_ptr<rclcpp::executors::MultiThreadedExecutor> executor_;
         std::thread executor_thread_;
 
@@ -115,8 +145,17 @@ namespace simple_state_machine
 
         // Helper functions
         std::string getStateName(STATES state);
+        std::string getXarmStateName(XarmState state);
+        std::string getXarmModeName(XarmMode mode);
         void stateCallback(const xarm_msgs::msg::RobotStateAndTargetPose::SharedPtr msg);
         void stopCallback(const xarm_msgs::msg::StopCommand::SharedPtr msg);
+        void robotStateCallback(const xarm_msgs::msg::RobotMsg::SharedPtr msg);
+        
+        // Robot state validation functions
+        bool isRobotReady();
+        bool isRobotMoving();
+        bool hasRobotError();
+        bool shouldTransitionBasedOnRobotState(STATES intended_state);
 
         // Timeout values for each state (in milliseconds)
         const std::map<STATES, int> state_timeouts = {

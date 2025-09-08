@@ -27,7 +27,7 @@ class ModeSwitcher(Node):
         self.state_machine_state = 0  # Track state machine state
         self.state_names = {
             0: "IDLE", 1: "MOVING", 2: "PICKING", 3: "PLACING", 
-            4: "MANUAL_MODE", 5: "FINAL", 6: "ERROR"
+            4: "FINAL", 5: "ERROR"
         }
 
         # Create subscribers 
@@ -44,10 +44,11 @@ class ModeSwitcher(Node):
         self.switch_processes(self.current_mode)
 
     def mode_callback(self, msg):
+        requested_mode = None
         if msg.data == 0:
-            self.current_mode = "MODE-MOVEIT"
+            requested_mode = "MODE-MOVEIT"
         elif msg.data == 2:
-            self.current_mode = "MODE-MANUAL"
+            requested_mode = "MODE-MANUAL"
         else:
             self.get_logger().error("MODE: %s -- STATE-MACHINE: %s -- Invalid mode: %s" % (
                                   self.current_mode, 
@@ -55,8 +56,41 @@ class ModeSwitcher(Node):
                                   str(msg.data)))
             return
 
-        # Switch processes based on the mode
-        self.switch_processes(self.current_mode)
+        # Check if mode switch is safe based on current state
+        if self.is_safe_to_switch_mode(requested_mode):
+            self.current_mode = requested_mode
+            # Switch processes based on the mode
+            self.switch_processes(self.current_mode)
+        else:
+            self.get_logger().warn("MODE: %s -- STATE-MACHINE: %s -- Mode switch to %s denied - unsafe state" % (
+                                 self.current_mode,
+                                 self.state_names.get(self.state_machine_state, "UNKNOWN"),
+                                 requested_mode))
+
+    def is_safe_to_switch_mode(self, requested_mode):
+        """
+        Check if it's safe to switch modes based on current state machine state
+        """
+        current_state_name = self.state_names.get(self.state_machine_state, "UNKNOWN")
+        
+        # Always allow switching to MANUAL mode from ERROR state (for recovery)
+        if self.state_machine_state == 5 and requested_mode == "MODE-MANUAL":  # ERROR state
+            return True
+            
+        # Don't allow switching during critical operations
+        if self.state_machine_state in [2, 3]:  # PICKING or PLACING states
+            self.get_logger().warn("MODE: %s -- STATE-MACHINE: %s -- Cannot switch mode during %s operation" % (
+                                 self.current_mode,
+                                 current_state_name,
+                                 current_state_name))
+            return False
+            
+        # Safe states for mode switching: IDLE, MOVING, FINAL
+        if self.state_machine_state in [0, 1, 4]:  # IDLE, MOVING, FINAL
+            return True
+            
+        # Default to safe
+        return True
 
     def state_machine_callback(self, msg):
         """Callback to track state machine state for synchronization"""
@@ -67,13 +101,19 @@ class ModeSwitcher(Node):
 
     def switch_processes(self, mode):
         # Kill the current process based on the mode
-        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Current mode: %s" % (
+        self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Switching to mode: %s" % (
                               mode, 
                               self.state_names.get(self.state_machine_state, "UNKNOWN"),
                               mode))
+                              
         if mode == "MODE-MANUAL":
-            # self.kill_processes_by_name(self.moveit_process)
-
+            # Graceful transition: wait if robot is moving
+            if self.state_machine_state == 1:  # MOVING state
+                self.get_logger().info("MODE: %s -- STATE-MACHINE: %s -- Waiting for movement to complete..." % (
+                                     mode, 
+                                     self.state_names.get(self.state_machine_state, "UNKNOWN")))
+                # Could implement a retry mechanism here
+                
             self.start_driver_process()
             if self.process_exist == False:
                 self.run_in_current_terminal("ros2 service call /xarm/motion_enable xarm_msgs/srv/SetInt16ById '{id: 8, data: 1}'")

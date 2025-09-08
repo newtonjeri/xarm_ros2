@@ -14,6 +14,7 @@ find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_visual_tools REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 
 include_directories(
@@ -30,8 +31,10 @@ target_include_directories(
 ament_target_dependencies(
   pick_and_place_sm
     "rclcpp"
+    "rclcpp_components"
     "xarm_msgs"
     "geometry_msgs"
+    "std_msgs"
     "moveit_ros_planning_interface"
     "moveit_visual_tools"
 )
@@ -42,9 +45,24 @@ rclcpp_components_register_node(
     EXECUTABLE pick_and_place_sm_node
 )
 
+# Create standalone executable with multithreaded executor
+add_executable(pick_and_place_sm_standalone src/pick_and_place_sm_node.cpp)
+target_link_libraries(pick_and_place_sm_standalone pick_and_place_sm)
+ament_target_dependencies(
+  pick_and_place_sm_standalone
+    "rclcpp"
+    "rclcpp_components"
+    "xarm_msgs"
+    "geometry_msgs"
+    "std_msgs"
+    "moveit_ros_planning_interface"
+    "moveit_visual_tools"
+)
+
 install(
   TARGETS 
     pick_and_place_sm
+    pick_and_place_sm_standalone
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

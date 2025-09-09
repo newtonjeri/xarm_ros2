@@ -250,12 +250,19 @@ namespace simple_state_machine
         std::lock_guard<std::recursive_mutex> lock(state_mutex_);
         
         if(new_state != previous_state){
-            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Transitioning from %s to %s", 
+
+            if (new_state == FINAL && previous_state == IDLE) {
+                RCLCPP_DEBUG(this->get_logger(), "No operation performed - already in IDLE state");
+                current_state = IDLE; // Stay in IDLE
+                return;
+            }
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Transitioning from %s to %s", 
                         getXarmModeName(current_xarm_mode).c_str(),
                         getStateName(current_state).c_str(),
                         getStateName(previous_state).c_str(),
                         getStateName(new_state).c_str());
-        }
 
         previous_state = current_state;
         current_state = new_state;
@@ -964,24 +971,19 @@ namespace simple_state_machine
 
         // 2. Approach (5cm above)
         geometry_msgs::msg::Pose approach_pose = pick_pose;
-        approach_pose.position.z += 0.05;
+        approach_pose.position.z -= 0.05;
         if (!performMovement(approach_pose)) {
             return false;
         }
 
-        // 3. Move to pick position
-        if (!performMovement(pick_pose)) {
-            return false;
-        }
-
-        // 4. Close gripper
+        // 3. Close gripper
         if (!xarm_gripper_object->gripperOpenAndClose({0.84, 0.84, 0.84, 0.84, 0.84, 0.84})) {
             RCLCPP_ERROR(this->get_logger(), "Gripper close failed");
             return false;
         }
 
-        // 5. Retreat
-        if (!performMovement(approach_pose)) {
+        // 4. Retreat
+        if (!performMovement(pick_pose)) {
             return false;
         }
 
@@ -999,14 +1001,16 @@ namespace simple_state_machine
         }
 
         // 1. Approach (5cm above)
-        geometry_msgs::msg::Pose approach_pose = place_pose;
-        approach_pose.position.z += 0.05;
-        if (!performMovement(approach_pose)) {
+
+        // 1. Move to top (place position)
+        if (!performMovement(place_pose)) {
             return false;
         }
 
-        // 2. Move to place position
-        if (!performMovement(place_pose)) {
+        //. Approach the placing pose
+        geometry_msgs::msg::Pose approach_pose = place_pose;
+        approach_pose.position.z -= 0.05;
+        if (!performMovement(approach_pose)) {
             return false;
         }
 
@@ -1017,7 +1021,7 @@ namespace simple_state_machine
         }
 
         // 4. Retreat
-        if (!performMovement(approach_pose)) {
+        if (!performMovement(place_pose)) {
             return false;
         }
 

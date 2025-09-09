@@ -16,7 +16,7 @@ import subprocess
 import shlex
 import psutil
 
-workspace_folder = "/home/newtonjeri/dev_ws"
+workspace_folder = "/VMLabs-ws/xarm7_ws/dev_ws"
 robot_ip = "172.16.40.20"
 
 class ModeSwitcher(Node):

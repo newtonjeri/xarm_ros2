@@ -10,7 +10,7 @@ import tty
 import os
 import signal
 
-workspace_folder = "/home/newtonjeri/dev_ws"
+workspace_folder = "/VMLabs-ws/xarm7_ws/dev_ws"
 
 class KeyboardController:
     def __init__(self):
@@ -293,6 +293,7 @@ def main():
         # f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg unity_subscriber_cpp_node",
         f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg complete_xarm_system.launch.py",
         f"cd {workspace_folder}; source install/setup.bash; ros2 run moveit_nodes_pkg update_planning_scene_node",
+        f"cd {workspace_folder}; source install/setup.bash; ros2 launch xarm7_hybrid_state_machine pick_and_place_state_machine.launch.py",
         # f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg start_container.launch.py",
         # f"cd {workspace_folder}; source install/setup.bash; ros2 launch moveit_nodes_pkg experiment002.launch.py",
     ])

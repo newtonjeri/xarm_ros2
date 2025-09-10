@@ -248,6 +248,14 @@ namespace simple_state_machine
     void PickAndPlaceStateMachine::enterState(STATES new_state)
     {
         std::lock_guard<std::recursive_mutex> lock(state_mutex_);
+         // Publish state change for synchronization with other nodes
+
+        std_msgs::msg::UInt8 state_msg;
+
+        if (current_state != IDLE){
+            state_msg.data = static_cast<uint8_t>(current_state);
+            state_publisher->publish(state_msg);
+        }
         
         if(new_state != previous_state){
 
@@ -268,9 +276,9 @@ namespace simple_state_machine
         current_state = new_state;
 
         // Publish state change for synchronization with other nodes
-        std_msgs::msg::UInt8 state_msg;
-        state_msg.data = static_cast<uint8_t>(current_state);
-        state_publisher->publish(state_msg);
+        // std_msgs::msg::UInt8 state_msg;
+        // state_msg.data = static_cast<uint8_t>(current_state);
+        // state_publisher->publish(state_msg);
 
         // State-specific entry actions
         xarm_msgs::msg::RobotMode mode_msg;

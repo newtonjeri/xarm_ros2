@@ -233,12 +233,14 @@
       <parent link="${prefix}link2" />
       <child link="${prefix}link3" />
       <axis xyz="0 0 1" />
-      <limit
+      <!-- <limit
         lower="${joint3_lower_limit}"
         upper="${joint3_upper_limit}"
         effort="30"
         velocity="3.14" />
-      <dynamics damping="5" friction="1" />
+        -->
+      <dynamics damping="5" friction="1" /> 
+      <limit lower="${-0.035}" upper="${0.035}" effort="30" velocity="3.14" />
     </joint>
     <link name="${prefix}link4">
       <xacro:common_link_inertial 

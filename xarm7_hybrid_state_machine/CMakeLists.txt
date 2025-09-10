@@ -15,6 +15,7 @@ find_package(moveit_visual_tools REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 
 include_directories(
@@ -35,6 +36,7 @@ ament_target_dependencies(
     "xarm_msgs"
     "geometry_msgs"
     "std_msgs"
+    "std_srvs"
     "moveit_ros_planning_interface"
     "moveit_visual_tools"
 )
@@ -55,6 +57,47 @@ ament_target_dependencies(
     "xarm_msgs"
     "geometry_msgs"
     "std_msgs"
+    "std_srvs"
+    "moveit_ros_planning_interface"
+    "moveit_visual_tools"
+)
+
+# Create pick and place service library
+add_library(pick_and_place_service SHARED src/pick_and_place_service.cpp)
+target_include_directories(
+  pick_and_place_service
+  PRIVATE "pick_and_place_service_CPP_BUILD_DLL"
+)
+
+ament_target_dependencies(
+  pick_and_place_service
+    "rclcpp"
+    "rclcpp_components"
+    "xarm_msgs"
+    "geometry_msgs"
+    "std_msgs"
+    "std_srvs"
+    "moveit_ros_planning_interface"
+    "moveit_visual_tools"
+)
+
+rclcpp_components_register_node(
+  pick_and_place_service
+    PLUGIN "pick_and_place_service::PickAndPlaceServiceNode"
+    EXECUTABLE pick_and_place_service_node
+)
+
+# Create standalone pick and place service executable
+add_executable(pick_and_place_service_standalone src/pick_and_place_service_node.cpp)
+target_link_libraries(pick_and_place_service_standalone pick_and_place_service)
+ament_target_dependencies(
+  pick_and_place_sm_standalone
+    "rclcpp"
+    "rclcpp_components"
+    "xarm_msgs"
+    "geometry_msgs"
+    "std_msgs"
+    "std_srvs"
     "moveit_ros_planning_interface"
     "moveit_visual_tools"
 )
@@ -63,6 +106,8 @@ install(
   TARGETS 
     pick_and_place_sm
     pick_and_place_sm_standalone
+    pick_and_place_service
+    pick_and_place_service_standalone
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

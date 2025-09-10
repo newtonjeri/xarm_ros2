@@ -13,6 +13,7 @@
   <depend>rclcpp_components</depend>
   <depend>xarm_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>geometry_msgs</depend>
   <depend>moveit_ros_planning_interface</depend>
   <depend>moveit_visual_tools</depend>

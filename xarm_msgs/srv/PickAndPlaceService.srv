@@ -1,0 +1,7 @@
+# PickAndPlaceService.srv
+# Request - part name to pick and place
+string part_name
+---
+# Response - success status and message
+bool success
+string message

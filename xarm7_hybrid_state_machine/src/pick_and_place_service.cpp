@@ -15,8 +15,8 @@ namespace pick_and_place_service
         : Node("pick_and_place_service_node", options),
           current_state_machine_state_(0), // IDLE
           operation_in_progress_(false),
-          operation_completed_(false),
-          operation_successful_(false)
+          operation_successful_(false),
+          operation_completed_(false)
     {
         // Initialize poses from experiment_002.cpp
         initializePoses();
@@ -38,6 +38,8 @@ namespace pick_and_place_service
 
         RCLCPP_INFO(this->get_logger(), "Pick and Place Service Node initialized");
         RCLCPP_INFO(this->get_logger(), "Service available at: /xarm7/pick_and_place_service");
+        RCLCPP_INFO(this->get_logger(), "Publishing commands to: /xarm7_state_topic");
+        RCLCPP_INFO(this->get_logger(), "Monitoring state machine via: /xarm7_state_machine_state");
         RCLCPP_INFO(this->get_logger(), "Supported parts: spindle_2, pinion_gear, idler_gear, cover_plate");
     }
 
@@ -50,12 +52,11 @@ namespace pick_and_place_service
         const std::shared_ptr<xarm_msgs::srv::PickAndPlaceService::Request> request,
         std::shared_ptr<xarm_msgs::srv::PickAndPlaceService::Response> response)
     {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-
-        RCLCPP_INFO(this->get_logger(), "Received pick and place request for part: %s", request->part_name.c_str());
+        RCLCPP_INFO(this->get_logger(), "=== NEW PICK AND PLACE REQUEST ===");
+        RCLCPP_INFO(this->get_logger(), "Requested part: %s", request->part_name.c_str());
 
         // Check if operation is already in progress
-        if (operation_in_progress_) {
+        if (operation_in_progress_.load()) {
             response->success = false;
             response->message = "Another pick and place operation is already in progress";
             RCLCPP_WARN(this->get_logger(), "%s", response->message.c_str());
@@ -75,54 +76,97 @@ namespace pick_and_place_service
         int part_id = getPartId(request->part_name);
         auto poses = getPartPoses(request->part_name);
 
-        // Set operation flags
-        operation_in_progress_ = true;
-        operation_completed_ = false;
-        operation_successful_ = false;
+        // Reset and set operation flags atomically
+        RCLCPP_INFO(this->get_logger(), "Starting operation for part: %s", request->part_name.c_str());
+        operation_in_progress_.store(true);
+        operation_successful_.store(false);
+        
+        // Reset completion state (protected by mutex)
+        {
+            std::lock_guard<std::mutex> lock(completion_mutex_);
+            operation_completed_ = false;
+        }
 
         // Send command to state machine
         sendPickAndPlaceCommand(part_id, poses);
 
         // Wait for completion with timeout (60 seconds)
+        RCLCPP_INFO(this->get_logger(), "Waiting for operation completion (timeout: 60s)...");
         bool completed = waitForCompletion(std::chrono::seconds(60));
 
-        // Reset operation flags
-        operation_in_progress_ = false;
+        // Reset operation flag atomically
+        operation_in_progress_.store(false);
 
-        if (completed && operation_successful_) {
+        // Process results
+        if (completed && operation_successful_.load()) {
             response->success = true;
             response->message = "Pick and place operation for " + request->part_name + " completed successfully";
+            RCLCPP_INFO(this->get_logger(), "=== OPERATION SUCCESS ===");
             RCLCPP_INFO(this->get_logger(), "%s", response->message.c_str());
             
             // Remove collision object after successful operation
             psi_.removeCollisionObjects({request->part_name});
-        } else if (completed && !operation_successful_) {
+        } else if (completed && !operation_successful_.load()) {
             response->success = false;
             response->message = "Pick and place operation for " + request->part_name + " failed";
+            RCLCPP_ERROR(this->get_logger(), "=== OPERATION FAILED ===");
             RCLCPP_ERROR(this->get_logger(), "%s", response->message.c_str());
         } else {
             response->success = false;
             response->message = "Pick and place operation for " + request->part_name + " timed out";
+            RCLCPP_ERROR(this->get_logger(), "=== OPERATION TIMEOUT ===");
             RCLCPP_ERROR(this->get_logger(), "%s", response->message.c_str());
         }
+        
+        RCLCPP_INFO(this->get_logger(), "Service ready for next request");
     }
 
     void PickAndPlaceServiceNode::stateMachineStateCallback(const std_msgs::msg::UInt8::SharedPtr msg)
     {
-        std::lock_guard<std::mutex> lock(state_mutex_);
-        current_state_machine_state_ = msg->data;
+        uint8_t new_state = msg->data;
+        uint8_t previous_state = current_state_machine_state_.load();
+        
+        // Update current state
+        current_state_machine_state_.store(new_state);
+        
+        // Log state changes for debugging
+        if (new_state != previous_state) {
+            const char* state_names[] = {"IDLE", "MOVING", "PICKING", "PLACING", "FINAL", "ERROR"};
+            const char* current_name = (new_state < 6) ? state_names[new_state] : "UNKNOWN";
+            const char* previous_name = (previous_state < 6) ? state_names[previous_state] : "UNKNOWN";
+            
+            RCLCPP_INFO(this->get_logger(), "State machine transition: %s (%d) -> %s (%d)", 
+                       previous_name, previous_state, current_name, new_state);
+        }
 
         // Check if operation completed (FINAL state = 4, ERROR state = 5)
-        if (operation_in_progress_) {
-            if (current_state_machine_state_ == 4) { // FINAL
-                operation_completed_ = true;
-                operation_successful_ = true;
+        if (operation_in_progress_.load()) {
+            if (new_state == 4) { // FINAL
                 RCLCPP_INFO(this->get_logger(), "State machine reached FINAL state - operation successful");
-            } else if (current_state_machine_state_ == 5) { // ERROR
-                operation_completed_ = true;
-                operation_successful_ = false;
+                operation_successful_.store(true);
+                
+                // Notify waiting service callback
+                {
+                    std::lock_guard<std::mutex> lock(completion_mutex_);
+                    operation_completed_ = true;
+                }
+                completion_cv_.notify_one();
+                
+            } else if (new_state == 5) { // ERROR
                 RCLCPP_WARN(this->get_logger(), "State machine reached ERROR state - operation failed");
+                operation_successful_.store(false);
+                
+                // Notify waiting service callback
+                {
+                    std::lock_guard<std::mutex> lock(completion_mutex_);
+                    operation_completed_ = true;
+                }
+                completion_cv_.notify_one();
             }
+            // For other states (IDLE, MOVING, PICKING, PLACING), continue waiting
+        } else {
+            // Log state changes even when no operation is in progress (for debugging)
+            RCLCPP_DEBUG(this->get_logger(), "Received state update but no operation in progress");
         }
     }
 
@@ -151,45 +195,63 @@ namespace pick_and_place_service
     void PickAndPlaceServiceNode::sendPickAndPlaceCommand(int part_id, const std::map<std::string, geometry_msgs::msg::Pose>& poses)
     {
         auto command = xarm_msgs::msg::RobotStateAndTargetPose();
-        command.robot_next_state = 1;
+        command.robot_next_state = 1; // MOVING state
+        
+        // Log the command details
+        RCLCPP_INFO(this->get_logger(), "Preparing pick and place command for part ID: %d", part_id);
 
         // Set target poses based on part type
         if (poses.find("pick") != poses.end()) {
             command.target_pose_1 = poses.at("pick");
+            RCLCPP_INFO(this->get_logger(), "Pick pose: [%.3f, %.3f, %.3f]", 
+                       command.target_pose_1.position.x,
+                       command.target_pose_1.position.y,
+                       command.target_pose_1.position.z);
+        } else {
+            RCLCPP_WARN(this->get_logger(), "No pick pose found for part!");
         }
+        
         if (poses.find("place") != poses.end()) {
             command.target_pose_2 = poses.at("place");
+            RCLCPP_INFO(this->get_logger(), "Place pose: [%.3f, %.3f, %.3f]", 
+                       command.target_pose_2.position.x,
+                       command.target_pose_2.position.y,
+                       command.target_pose_2.position.z);
+        } else {
+            RCLCPP_INFO(this->get_logger(), "No place pose (pick-only operation)");
         }
 
+        // Publish command
         state_topic_publisher_->publish(command);
-        RCLCPP_INFO(this->get_logger(), "Sent pick and place command for part ID: %d", part_id);
+        RCLCPP_INFO(this->get_logger(), "Command sent to state machine via /xarm7_state_topic");
+        
+        // Give a brief moment for the command to be processed
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
     bool PickAndPlaceServiceNode::waitForCompletion(const std::chrono::seconds& timeout)
     {
+        // Much simpler approach: just wait for the state machine callback to notify us
+        std::unique_lock<std::mutex> lock(completion_mutex_);
+        
         auto start_time = std::chrono::steady_clock::now();
+        RCLCPP_INFO(this->get_logger(), "Waiting for state machine to complete operation...");
         
-        while (rclcpp::ok()) {
-            // Check timeout
+        // Wait for completion or timeout
+        bool completed = completion_cv_.wait_for(lock, timeout, [this] { 
+            return operation_completed_; 
+        });
+        
+        if (completed) {
             auto elapsed = std::chrono::steady_clock::now() - start_time;
-            if (elapsed >= timeout) {
-                return false;
-            }
-
-            // Check if operation completed
-            {
-                std::lock_guard<std::mutex> lock(state_mutex_);
-                if (operation_completed_) {
-                    return true;
-                }
-            }
-
-            // Sleep briefly to avoid busy waiting
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            rclcpp::spin_some(shared_from_this());
+            auto completion_time = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+            RCLCPP_INFO(this->get_logger(), "Operation completed in %ld ms", completion_time);
+            return true;
+        } else {
+            RCLCPP_WARN(this->get_logger(), "Operation timed out after %ld seconds", timeout.count());
+            RCLCPP_WARN(this->get_logger(), "Final state was: %d", current_state_machine_state_.load());
+            return false;
         }
-        
-        return false;
     }
 
     void PickAndPlaceServiceNode::initializePoses()

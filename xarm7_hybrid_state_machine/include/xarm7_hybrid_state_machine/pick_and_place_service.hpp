@@ -12,6 +12,9 @@
 #include <string>
 #include <map>
 #include <chrono>
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
 
 #include "rclcpp/rclcpp.hpp"
 #include "xarm_msgs/srv/pick_and_place_service.hpp"
@@ -52,24 +55,25 @@ namespace pick_and_place_service
         int getPartId(const std::string& part_name);
         std::map<std::string, geometry_msgs::msg::Pose> getPartPoses(const std::string& part_name);
         void sendPickAndPlaceCommand(int part_id, const std::map<std::string, geometry_msgs::msg::Pose>& poses);
-        bool waitForCompletion(const std::chrono::seconds& timeout);
+        bool waitForCompletion(const std::chrono::seconds& timeout);  // Will be simplified
 
         // Publishers and subscribers
         rclcpp::Service<xarm_msgs::srv::PickAndPlaceService>::SharedPtr pick_place_service_;
         rclcpp::Publisher<xarm_msgs::msg::RobotStateAndTargetPose>::SharedPtr state_topic_publisher_;
         rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr state_machine_subscriber_;
 
-        // State monitoring
-        uint8_t current_state_machine_state_;
-        bool operation_in_progress_;
+        // State monitoring (using atomic for thread-safe access)
+        std::atomic<uint8_t> current_state_machine_state_;
+        std::atomic<bool> operation_in_progress_;
+        std::atomic<bool> operation_successful_;
+        
+        // Completion notification (replaces polling waitForCompletion)
+        std::condition_variable completion_cv_;
+        std::mutex completion_mutex_;
         bool operation_completed_;
-        bool operation_successful_;
         
         // Planning scene interface for collision objects
         moveit::planning_interface::PlanningSceneInterface psi_;
-
-        // Mutex for thread safety
-        std::mutex state_mutex_;
 
         // Timer for operation timeout
         rclcpp::TimerBase::SharedPtr timeout_timer_;

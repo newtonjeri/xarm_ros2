@@ -135,7 +135,7 @@ namespace simple_state_machine
         rclcpp::CallbackGroup::SharedPtr robot_state_callback_group_;
 
         // Thread safety
-        mutable std::recursive_mutex state_mutex_;
+        mutable std::mutex state_mutex_;  // Changed from recursive_mutex
         mutable std::mutex pose_mutex_;
         mutable std::mutex sequence_mutex_;
 
@@ -147,6 +147,7 @@ namespace simple_state_machine
         void executeStateMachine();
         bool isValidTransition(STATES next_state);
         void enterState(STATES new_state);
+        void enterStateUnsafe(STATES new_state); // Helper for already-locked contexts
         void exitState(STATES old_state);
         void handleCompletion();
         void handleError();

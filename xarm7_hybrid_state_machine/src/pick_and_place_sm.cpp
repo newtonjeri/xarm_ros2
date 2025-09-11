@@ -247,38 +247,39 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::enterState(STATES new_state)
     {
-        std::lock_guard<std::recursive_mutex> lock(state_mutex_);
-         // Publish state change for synchronization with other nodes
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        enterStateUnsafe(new_state);
+    }
 
-        std_msgs::msg::UInt8 state_msg;
-
-        if (current_state != IDLE){
-            state_msg.data = static_cast<uint8_t>(current_state);
-            state_publisher->publish(state_msg);
+    void PickAndPlaceStateMachine::enterStateUnsafe(STATES new_state)
+    {
+        // This function assumes state_mutex_ is already locked by the caller
+        
+        // Check for no-op transitions
+        if(new_state == current_state) {
+            RCLCPP_DEBUG(this->get_logger(), "No state change needed - already in %s state", 
+                        getStateName(new_state).c_str());
+            return;
         }
         
-        if(new_state != previous_state){
-
-            if (new_state == FINAL && previous_state == IDLE) {
-                RCLCPP_DEBUG(this->get_logger(), "No operation performed - already in IDLE state");
-                current_state = IDLE; // Stay in IDLE
-                return;
-            }
+        if(new_state == FINAL && current_state == IDLE) {
+            RCLCPP_DEBUG(this->get_logger(), "No operation performed - already in IDLE state");
+            return; // Stay in current state
         }
         
         RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Transitioning from %s to %s", 
                         getXarmModeName(current_xarm_mode).c_str(),
                         getStateName(current_state).c_str(),
-                        getStateName(previous_state).c_str(),
+                        getStateName(current_state).c_str(),
                         getStateName(new_state).c_str());
 
         previous_state = current_state;
         current_state = new_state;
 
-        // Publish state change for synchronization with other nodes
-        // std_msgs::msg::UInt8 state_msg;
-        // state_msg.data = static_cast<uint8_t>(current_state);
-        // state_publisher->publish(state_msg);
+        // Publish state change for synchronization with other nodes (publish new state)
+        std_msgs::msg::UInt8 state_msg;
+        state_msg.data = static_cast<uint8_t>(current_state);
+        state_publisher->publish(state_msg);
 
         // State-specific entry actions
         xarm_msgs::msg::RobotMode mode_msg;
@@ -299,7 +300,7 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::robotStateCallback(const xarm_msgs::msg::RobotMsg::SharedPtr msg)
     {
-        std::lock_guard<std::recursive_mutex> lock(state_mutex_);
+        std::lock_guard<std::mutex> lock(state_mutex_);
         
         current_xarm_state = static_cast<XarmState>(msg->state);
         current_xarm_mode = static_cast<XarmMode>(msg->mode);
@@ -324,7 +325,7 @@ namespace simple_state_machine
                 
                 // Force transition to safe state (IDLE) for the new mode
                 if (isValidTransition(IDLE)) {
-                    enterState(IDLE);
+                    enterStateUnsafe(IDLE);  // Use unsafe version since we already hold the lock
                 }
             }
         }
@@ -361,7 +362,7 @@ namespace simple_state_machine
             
             // Error detected - transition to ERROR state
             if (isValidTransition(ERROR)) {
-                enterState(ERROR);
+                enterStateUnsafe(ERROR);  // Use unsafe version since we already hold the lock
             }
         } else if (last_error != 0 && xarm_error_code == 0 && current_state == ERROR) {
             // Error has cleared while in ERROR state - attempt automatic recovery
@@ -372,7 +373,7 @@ namespace simple_state_machine
             
             if (isRobotReady()) {
                 RCLCPP_INFO(this->get_logger(), "Robot ready - automatic recovery to IDLE successful");
-                enterState(IDLE);
+                enterStateUnsafe(IDLE);  // Use unsafe version since we already hold the lock
             } else {
                 RCLCPP_WARN(this->get_logger(), "Robot not ready yet - staying in ERROR state");
             }
@@ -389,7 +390,7 @@ namespace simple_state_machine
     void PickAndPlaceStateMachine::stateCallback(const xarm_msgs::msg::RobotStateAndTargetPose::SharedPtr msg)
     {
         std::lock_guard<std::mutex> pose_lock(pose_mutex_);
-        std::lock_guard<std::recursive_mutex> state_lock(state_mutex_);
+        std::lock_guard<std::mutex> state_lock(state_mutex_);
         
         command_source = CommandSource::STATE_TOPIC;
         current_command = msg->robot_next_state;
@@ -407,18 +408,18 @@ namespace simple_state_machine
             bool success = processExternalCommand(msg->robot_next_state, msg->target_pose_1, msg->target_pose_2);
             if (!success) {
                 RCLCPP_ERROR(this->get_logger(), "Failed to process external command");
-                enterState(ERROR);
+                enterStateUnsafe(ERROR);  // Use unsafe version since we already hold the lock
             }
         } else if (current_state == ERROR) {
             // Allow recovery from ERROR state if robot is ready
             if (isRobotReady() && !hasRobotError()) {
                 RCLCPP_INFO(this->get_logger(), "Command received while in ERROR state - attempting recovery");
-                enterState(IDLE);
+                enterStateUnsafe(IDLE);  // Use unsafe version since we already hold the lock
                 // Now process the command
                 bool success = processExternalCommand(msg->robot_next_state, msg->target_pose_1, msg->target_pose_2);
                 if (!success) {
                     RCLCPP_ERROR(this->get_logger(), "Failed to process external command after recovery");
-                    enterState(ERROR);
+                    enterStateUnsafe(ERROR);  // Use unsafe version since we already hold the lock
                 }
             } else {
                 RCLCPP_WARN(this->get_logger(), "Command received while in ERROR state, but robot not ready for recovery");
@@ -773,22 +774,29 @@ namespace simple_state_machine
     
     void PickAndPlaceStateMachine::executeSequence()
     {
-        std::lock_guard<std::mutex> lock(sequence_mutex_);
+        STATES current_step;
+        bool should_execute_state = false;
         
-        if (!sequence_active_ || sequence_index_ >= planned_sequence_.size()) {
-            RCLCPP_DEBUG(this->get_logger(), "Sequence completed or not active");
-            resetSequence();
-            return;
-        }
+        {
+            std::lock_guard<std::mutex> lock(sequence_mutex_);
+            
+            if (!sequence_active_ || sequence_index_ >= planned_sequence_.size()) {
+                RCLCPP_DEBUG(this->get_logger(), "Sequence completed or not active");
+                resetSequence();
+                return;
+            }
 
-        STATES current_step = planned_sequence_[sequence_index_];
+            current_step = planned_sequence_[sequence_index_];
+            should_execute_state = (current_step == current_state);
+        }
+        
         RCLCPP_DEBUG(this->get_logger(), "Executing sequence step %zu/%zu: %s", 
                     sequence_index_ + 1, planned_sequence_.size(), getStateName(current_step).c_str());
 
         // Execute current step
         if (current_step != current_state) {
             enterState(current_step);
-        } else {
+        } else if (should_execute_state) {
             // We're already in the target state, execute the state logic
             switch (current_step) {
                 case MOVING:

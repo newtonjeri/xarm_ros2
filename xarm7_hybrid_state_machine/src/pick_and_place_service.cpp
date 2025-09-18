@@ -90,9 +90,17 @@ namespace pick_and_place_service
         // Send command to state machine
         sendPickAndPlaceCommand(part_id, poses);
 
-        // Wait for completion with timeout (60 seconds)
-        RCLCPP_INFO(this->get_logger(), "Waiting for operation completion (timeout: 60s)...");
-        bool completed = waitForCompletion(std::chrono::seconds(60));
+        // Determine timeout based on operation type
+        std::chrono::seconds timeout = getOperationTimeout(request->part_name);
+        
+        // Wait for completion with dynamic timeout
+        // NOTE: This uses efficient state-based completion detection!
+        // - The stateMachineStateCallback monitors state transitions
+        // - Completion is detected when state reaches FINAL (success) or ERROR (failure)
+        // - Uses condition_variable for immediate notification (no polling)
+        // - Timeout is just a safety fallback in case something goes wrong
+        RCLCPP_INFO(this->get_logger(), "Waiting for operation completion (timeout: %lds)...", timeout.count());
+        bool completed = waitForCompletion(timeout);
 
         // Reset operation flag atomically
         operation_in_progress_.store(false);
@@ -143,9 +151,10 @@ namespace pick_and_place_service
         if (operation_in_progress_.load()) {
             if (new_state == 4) { // FINAL
                 RCLCPP_INFO(this->get_logger(), "State machine reached FINAL state - operation successful");
+                RCLCPP_INFO(this->get_logger(), "State-based completion detected - notifying service callback");
                 operation_successful_.store(true);
                 
-                // Notify waiting service callback
+                // Notify waiting service callback immediately
                 {
                     std::lock_guard<std::mutex> lock(completion_mutex_);
                     operation_completed_ = true;
@@ -154,9 +163,10 @@ namespace pick_and_place_service
                 
             } else if (new_state == 5) { // ERROR
                 RCLCPP_WARN(this->get_logger(), "State machine reached ERROR state - operation failed");
+                RCLCPP_WARN(this->get_logger(), "State-based completion detected - notifying service callback");
                 operation_successful_.store(false);
                 
-                // Notify waiting service callback
+                // Notify waiting service callback immediately
                 {
                     std::lock_guard<std::mutex> lock(completion_mutex_);
                     operation_completed_ = true;
@@ -164,6 +174,12 @@ namespace pick_and_place_service
                 completion_cv_.notify_one();
             }
             // For other states (IDLE, MOVING, PICKING, PLACING), continue waiting
+            else {
+                const char* state_names[] = {"IDLE", "MOVING", "PICKING", "PLACING", "FINAL", "ERROR"};
+                const char* current_name = (new_state < 6) ? state_names[new_state] : "UNKNOWN";
+                RCLCPP_DEBUG(this->get_logger(), "Operation in progress, current state: %s (%d)", 
+                            current_name, new_state);
+            }
         } else {
             // Log state changes even when no operation is in progress (for debugging)
             RCLCPP_DEBUG(this->get_logger(), "Received state update but no operation in progress");
@@ -231,13 +247,13 @@ namespace pick_and_place_service
 
     bool PickAndPlaceServiceNode::waitForCompletion(const std::chrono::seconds& timeout)
     {
-        // Much simpler approach: just wait for the state machine callback to notify us
         std::unique_lock<std::mutex> lock(completion_mutex_);
         
         auto start_time = std::chrono::steady_clock::now();
         RCLCPP_INFO(this->get_logger(), "Waiting for state machine to complete operation...");
+        RCLCPP_INFO(this->get_logger(), "Operation will complete when state machine reaches FINAL or ERROR state");
         
-        // Wait for completion or timeout
+        // Wait for completion or timeout using condition variable (efficient, no polling)
         bool completed = completion_cv_.wait_for(lock, timeout, [this] { 
             return operation_completed_; 
         });
@@ -245,12 +261,29 @@ namespace pick_and_place_service
         if (completed) {
             auto elapsed = std::chrono::steady_clock::now() - start_time;
             auto completion_time = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
-            RCLCPP_INFO(this->get_logger(), "Operation completed in %ld ms", completion_time);
+            RCLCPP_INFO(this->get_logger(), "Operation completed in %ld ms (state-based detection)", completion_time);
+            RCLCPP_INFO(this->get_logger(), "Final state: %s (%d)", 
+                       operation_successful_.load() ? "FINAL" : "ERROR", 
+                       current_state_machine_state_.load());
             return true;
         } else {
             RCLCPP_WARN(this->get_logger(), "Operation timed out after %ld seconds", timeout.count());
-            RCLCPP_WARN(this->get_logger(), "Final state was: %d", current_state_machine_state_.load());
+            RCLCPP_WARN(this->get_logger(), "Current state when timeout occurred: %d", current_state_machine_state_.load());
+            RCLCPP_WARN(this->get_logger(), "Note: Timeout is a safety fallback - completion is primarily state-based");
             return false;
+        }
+    }
+
+    std::chrono::seconds PickAndPlaceServiceNode::getOperationTimeout(const std::string& part_name)
+    {
+        // Dynamic timeout based on operation complexity
+        // These are generous timeouts as the actual completion is state-based
+        if (part_name == "cover_plate_") {
+            // Cover plate is pick-only operation, should be faster
+            return std::chrono::seconds(20);
+        } else {
+            // Full pick-and-place operations for other parts
+            return std::chrono::seconds(60);
         }
     }
 

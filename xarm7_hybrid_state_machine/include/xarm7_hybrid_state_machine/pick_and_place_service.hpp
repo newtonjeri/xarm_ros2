@@ -55,7 +55,8 @@ namespace pick_and_place_service
         int getPartId(const std::string& part_name);
         std::map<std::string, geometry_msgs::msg::Pose> getPartPoses(const std::string& part_name);
         void sendPickAndPlaceCommand(int part_id, const std::map<std::string, geometry_msgs::msg::Pose>& poses);
-        bool waitForCompletion(const std::chrono::seconds& timeout);  // Will be simplified
+        bool waitForCompletion(const std::chrono::seconds& timeout);
+        std::chrono::seconds getOperationTimeout(const std::string& part_name);
 
         // Publishers and subscribers
         rclcpp::Service<xarm_msgs::srv::PickAndPlaceService>::SharedPtr pick_place_service_;

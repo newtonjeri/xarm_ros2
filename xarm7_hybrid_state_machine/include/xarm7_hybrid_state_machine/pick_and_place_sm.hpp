@@ -23,6 +23,8 @@
 #include "xarm_msgs/msg/robot_state_and_target_pose.hpp"
 #include "xarm_msgs/msg/stop_command.hpp"
 #include "xarm_msgs/msg/robot_msg.hpp"
+#include "xarm_msgs/srv/call.hpp"
+#include "xarm_msgs/srv/set_int16.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "moveit_include.hpp"
 
@@ -63,6 +65,14 @@ namespace simple_state_machine
         TEACHING_JOINT = 2   // Gravity compensated mode, easy for teaching
     };
 
+    // Error types for differentiated error handling
+    enum class ErrorType
+    {
+        NONE = 0,           // No error
+        MOVEIT_PLANNING,    // MoveIt2 planning failures - allow direct recovery to IDLE
+        HARDWARE_ERROR      // Hardware/xarm error codes - require manual recovery
+    };
+
     class PickAndPlaceStateMachine : public rclcpp::Node
     {
     public:
@@ -93,6 +103,11 @@ namespace simple_state_machine
         rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr recovery_service_;
         rclcpp::TimerBase::SharedPtr execution_timer;
         rclcpp::TimerBase::SharedPtr initialization_timer;
+
+        // Xarm service clients for recovery
+        rclcpp::Client<xarm_msgs::srv::Call>::SharedPtr clean_error_client_;
+        rclcpp::Client<xarm_msgs::srv::SetInt16>::SharedPtr set_mode_client_;
+        rclcpp::Client<xarm_msgs::srv::SetInt16>::SharedPtr set_state_client_;
 
         // MoveIt interfaces
         std::shared_ptr<moveitinclude::MoveitIncludeNode> xarm7_object;
@@ -125,6 +140,10 @@ namespace simple_state_machine
         
         // Asynchronous operation tracking
         bool movement_in_progress_;
+        
+        // Error tracking for differentiated error handling
+        ErrorType current_error_type;
+        
         bool gripper_operation_in_progress_;
         std::chrono::time_point<std::chrono::steady_clock> movement_start_time_;
         std::chrono::time_point<std::chrono::steady_clock> gripper_start_time_;
@@ -151,6 +170,12 @@ namespace simple_state_machine
         void exitState(STATES old_state);
         void handleCompletion();
         void handleError();
+        
+        // Error handling functions
+        void setErrorType(ErrorType error_type);
+        void handleMoveitError();
+        void handleHardwareError();
+        std::string getErrorTypeName(ErrorType error_type);
 
         // Sequence planning and execution
         bool processExternalCommand(int8_t robot_next_state, 

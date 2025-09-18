@@ -90,3 +90,18 @@ target_pose_2:
 
 // Move Home
 
+
+
+// Service call
+ros2 service call /xarm/mtc_task_service xarm_msgs/srv/MTCTaskRequest "{
+  request_type: 1, task_id: 1, task_name: 'spindle_2'
+}"
+
+# Mode switching (both methods work)
+# New MTC service interface:
+ros2 service call /mtc_task_request xarm_msgs/srv/MTCTaskRequest "{
+  request_type: 2, mode: 2, task_name: 'mode_switch'
+}"
+
+# Existing RobotMode interface (backward compatible):
+ros2 topic pub /robot_mode xarm_msgs/msg/RobotMode "{data: 0}"

@@ -23,7 +23,7 @@ The XARM7 Hybrid State Machine provides a complete solution for autonomous pick-
 - **Autonomous Pick-and-Place**: Full pick-and-place sequences for gear box assembly
 - **Modal Operation**: Supports POSITION, SERVOJ, and TEACHING_JOINT modes
 - **Intelligent Planning**: Automatic sequence planning based on operation type
-- **Robust Error Recovery**: Manual recovery service with comprehensive robot reset
+- **Differentiated Error Handling**: Automatic recovery for MoveIt2 errors, manual recovery for hardware errors
 - **Real-time Monitoring**: State-based completion detection with immediate response
 - **Multi-threaded**: Efficient callback group management for concurrent operations
 
@@ -152,6 +152,28 @@ IDLE → MOVING → PICKING → FINAL
 // Full pick-and-place
 IDLE → MOVING → PICKING → MOVING → PLACING → FINAL
 ```
+
+### 🛡️ Differentiated Error Handling
+The state machine implements intelligent error handling that distinguishes between different error types:
+
+#### **MoveIt2 Planning Errors**
+- **Automatic Recovery**: Direct ERROR → IDLE transition for task replanning
+- **Use Case**: Path planning failures, kinematic constraints, unreachable poses
+- **Behavior**: State machine automatically returns to IDLE after 1 second
+- **Action**: Send new command or retry with modified poses
+
+#### **Hardware/xarm Errors** 
+- **Manual Recovery**: Requires intervention via recovery service or mode switcher
+- **Use Case**: Robot error codes, emergency stops, hardware malfunctions
+- **Behavior**: State machine stays in ERROR state until manual recovery
+- **Action**: Resolve hardware issues, then use recovery service or mode switcher
+
+#### Integration with Mode Switcher
+- Switch to MANUAL mode for hands-on hardware error resolution
+- Always allows mode switching FROM ERROR state for recovery
+- Blocks mode switching during critical operations (PICKING/PLACING)
+
+See [Differentiated Error Handling Documentation](docs/DIFFERENTIATED_ERROR_HANDLING.md) for detailed information.
 
 ### 🛡️ Robust Error Recovery
 **No Automatic Recovery**: System stays in ERROR state until manual intervention
@@ -328,28 +350,52 @@ place: N/A (pick-only operation)
 
 ## 🔧 Error Handling
 
+The state machine implements **differentiated error handling** to provide appropriate recovery mechanisms based on error type.
+
+### Error Types
+
+#### **MoveIt2 Planning Errors** (Automatic Recovery)
+- **Detection**: Planning failures, kinematic constraint violations
+- **Recovery**: Automatic ERROR → IDLE transition after 1 second  
+- **Action**: Retry operation or send new commands
+
+#### **Hardware/xarm Errors** (Manual Recovery)
+- **Detection**: Robot error codes, emergency stops, hardware malfunctions
+- **Recovery**: Manual intervention required via recovery service or mode switcher
+- **Action**: Resolve hardware issues first, then recover manually
+
+### Recovery Methods
+
+#### Automatic Recovery (MoveIt2 errors only)
+No action required - state machine automatically returns to IDLE
+
+#### Manual Recovery Service
+```bash
+ros2 service call /xarm7_state_machine/recover std_srvs/srv/Trigger
+```
+
+#### Mode Switcher Recovery
+1. Switch to MANUAL mode for hands-on troubleshooting
+2. Resolve hardware issues manually  
+3. Switch back to MOVEIT mode when ready
+
 ### Error States and Recovery
 
 #### Automatic Error Detection
-- **Hardware Errors**: Detected via `/xarm/robot_states` error codes
+- **Hardware Errors**: Detected via `/xarm/robot_states` error codes (→ Manual recovery)
+- **Planning Errors**: MoveIt planning failures (→ Automatic recovery)
 - **State Validation**: Invalid transitions for current robot mode  
-- **Motion Failures**: MoveIt planning or execution failures
-- **Emergency Stop**: Via `/xarm7_stop_command` topic
+- **Emergency Stop**: Via `/xarm7_stop_command` topic (→ Manual recovery)
 
-#### Manual Recovery Process
-1. **Error Occurs**: State machine transitions to ERROR state
-2. **Manual Intervention**: User calls recovery service
+#### Manual Recovery Process (Hardware Errors)
+1. **Error Occurs**: State machine transitions to ERROR state with HARDWARE_ERROR type
+2. **Manual Intervention**: User calls recovery service or uses mode switcher
 3. **Comprehensive Reset**: 
    - Clear robot errors
    - Set POSITION mode
    - Set READY state
    - Verify operations
 4. **Return to Operation**: Transition back to IDLE state
-
-#### Recovery Command
-```bash
-ros2 service call /xarm7_state_machine/recover std_srvs/srv/Trigger
-```
 
 ### Error Prevention
 - **State Validation**: Prevents invalid operations in each mode

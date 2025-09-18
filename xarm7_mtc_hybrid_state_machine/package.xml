@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>xarm7_mtc_hybrid_state_machine</name>
+  <version>1.0.0</version>
+  <description>
+    Advanced hybrid state machine for xarm7 pick-and-place operations using MoveIt Task Constructor.
+    Provides task-based motion planning with simplified state management and mode switching capabilities.
+  </description>
+
+  <maintainer email="newtonkaris45@gmail.com">Newton Kariuki</maintainer>
+  <license>BSD</license>
+
+  <author email="newtonkaris45@gmail.com">Newton Kariuki</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Core ROS2 dependencies -->
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
+
+  <!-- MoveIt Task Constructor dependencies -->
+  <depend>moveit_task_constructor_core</depend>
+  <depend>moveit_task_constructor_msgs</depend>
+  <depend>moveit_task_constructor_capabilities</depend>
+
+  <!-- MoveIt2 dependencies -->
+  <depend>moveit_core</depend>
+  <depend>moveit_ros_planning</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>moveit_visual_tools</depend>
+  <depend>moveit_servo</depend>
+
+  <!-- xarm specific dependencies -->
+  <depend>xarm_msgs</depend>
+  <depend>xarm_api</depend>
+
+  <!-- Additional utilities -->
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>eigen3_cmake_module</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

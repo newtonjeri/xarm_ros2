@@ -6,6 +6,7 @@
  ============================================================================*/
 
 #include "xarm7_hybrid_state_machine/pick_and_place_sm.hpp"
+#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -28,7 +29,8 @@ namespace simple_state_machine
         planned_sequence_(),
         sequence_index_(0),
         sequence_active_(false),
-        movement_in_progress_(false), 
+        movement_in_progress_(false),
+        current_error_type(ErrorType::NONE),
         gripper_operation_in_progress_(false)
     {
         initializeNode();
@@ -42,7 +44,8 @@ namespace simple_state_machine
         planned_sequence_(),
         sequence_index_(0),
         sequence_active_(false),
-        movement_in_progress_(false), 
+        movement_in_progress_(false),
+        current_error_type(ErrorType::NONE),
         gripper_operation_in_progress_(false)
     {
         initializeNode();
@@ -95,6 +98,11 @@ namespace simple_state_machine
             "/xarm7_state_machine/recover",
             std::bind(&PickAndPlaceStateMachine::recoveryService, this, 
                      std::placeholders::_1, std::placeholders::_2));
+
+        // Create xarm service clients for recovery
+        clean_error_client_ = this->create_client<xarm_msgs::srv::Call>("/xarm/clean_error");
+        set_mode_client_ = this->create_client<xarm_msgs::srv::SetInt16>("/xarm/set_mode");
+        set_state_client_ = this->create_client<xarm_msgs::srv::SetInt16>("/xarm/set_state");
 
         // Initialize default pose
         previous_pose.position.x = 0.4912;
@@ -187,6 +195,26 @@ namespace simple_state_machine
             return true;
         }
 
+        // Special case: Handle ERROR → IDLE transitions based on error type
+        if (current_state == ERROR && next_state == IDLE)
+        {
+            if (current_error_type == ErrorType::MOVEIT_PLANNING)
+            {
+                RCLCPP_INFO(this->get_logger(), "Allowing automatic recovery from MoveIt2 planning error");
+                return true;
+            }
+            else if (current_error_type == ErrorType::HARDWARE_ERROR)
+            {
+                RCLCPP_WARN(this->get_logger(), "Hardware error requires manual recovery via service call");
+                return false;
+            }
+            else
+            {
+                RCLCPP_WARN(this->get_logger(), "Unknown error type - defaulting to manual recovery");
+                return false;
+            }
+        }
+
         // Get the appropriate transition map for current mode
         auto mode_transitions = modal_transitions.find(current_xarm_mode);
         if (mode_transitions == modal_transitions.end())
@@ -248,6 +276,9 @@ namespace simple_state_machine
     void PickAndPlaceStateMachine::enterState(STATES new_state)
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
+        std_msgs::msg::UInt8 state_msg;
+        state_msg.data = static_cast<uint8_t>(current_state);
+        state_publisher->publish(state_msg);
         enterStateUnsafe(new_state);
     }
 
@@ -277,9 +308,9 @@ namespace simple_state_machine
         current_state = new_state;
 
         // Publish state change for synchronization with other nodes (publish new state)
-        std_msgs::msg::UInt8 state_msg;
-        state_msg.data = static_cast<uint8_t>(current_state);
-        state_publisher->publish(state_msg);
+        // std_msgs::msg::UInt8 state_msg;
+        // state_msg.data = static_cast<uint8_t>(current_state);
+        // state_publisher->publish(state_msg);
 
         // State-specific entry actions
         xarm_msgs::msg::RobotMode mode_msg;
@@ -354,29 +385,30 @@ namespace simple_state_machine
         }
 
         if (xarm_error_code != last_error && xarm_error_code != 0) {
-            RCLCPP_ERROR(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Xarm error detected: %d", 
+            RCLCPP_ERROR(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Xarm hardware error detected: %d", 
                          getXarmModeName(current_xarm_mode).c_str(),
                          getStateName(current_state).c_str(),
                          xarm_error_code);
             last_error = xarm_error_code;
+            
+            // Set error type to hardware error for differentiated handling
+            setErrorType(ErrorType::HARDWARE_ERROR);
             
             // Error detected - transition to ERROR state
             if (isValidTransition(ERROR)) {
                 enterStateUnsafe(ERROR);  // Use unsafe version since we already hold the lock
             }
         } else if (last_error != 0 && xarm_error_code == 0 && current_state == ERROR) {
-            // Error has cleared while in ERROR state - attempt automatic recovery
-            RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Error cleared, attempting automatic recovery", 
-                        getXarmModeName(current_xarm_mode).c_str(),
-                        getStateName(current_state).c_str());
+            // Error has cleared while in ERROR state - log but don't auto-recover for hardware errors
+            if (current_error_type == ErrorType::HARDWARE_ERROR) {
+                RCLCPP_INFO(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Hardware error cleared, but staying in ERROR state (manual recovery required)", 
+                            getXarmModeName(current_xarm_mode).c_str(),
+                            getStateName(current_state).c_str());
+            }
             last_error = 0;
             
-            if (isRobotReady()) {
-                RCLCPP_INFO(this->get_logger(), "Robot ready - automatic recovery to IDLE successful");
-                enterStateUnsafe(IDLE);  // Use unsafe version since we already hold the lock
-            } else {
-                RCLCPP_WARN(this->get_logger(), "Robot not ready yet - staying in ERROR state");
-            }
+            // No automatic recovery - user must call manual recovery service
+            RCLCPP_INFO(this->get_logger(), "Use manual recovery service to transition back to IDLE state");
         }
 
         RCLCPP_DEBUG(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: Xarm Status - State: %s, Mode: %s, Error: %d, Warning: %d",
@@ -411,23 +443,13 @@ namespace simple_state_machine
                 enterStateUnsafe(ERROR);  // Use unsafe version since we already hold the lock
             }
         } else if (current_state == ERROR) {
-            // Allow recovery from ERROR state if robot is ready
-            if (isRobotReady() && !hasRobotError()) {
-                RCLCPP_INFO(this->get_logger(), "Command received while in ERROR state - attempting recovery");
-                enterStateUnsafe(IDLE);  // Use unsafe version since we already hold the lock
-                // Now process the command
-                bool success = processExternalCommand(msg->robot_next_state, msg->target_pose_1, msg->target_pose_2);
-                if (!success) {
-                    RCLCPP_ERROR(this->get_logger(), "Failed to process external command after recovery");
-                    enterStateUnsafe(ERROR);  // Use unsafe version since we already hold the lock
-                }
-            } else {
-                RCLCPP_WARN(this->get_logger(), "Command received while in ERROR state, but robot not ready for recovery");
-                RCLCPP_INFO(this->get_logger(), "Robot state: %s, Error code: %d, Ready: %s", 
-                           getXarmStateName(current_xarm_state).c_str(), 
-                           xarm_error_code, 
-                           isRobotReady() ? "true" : "false");
-            }
+            // Commands received while in ERROR state are rejected - manual recovery required
+            RCLCPP_WARN(this->get_logger(), "Command received while in ERROR state - manual recovery required first");
+            RCLCPP_INFO(this->get_logger(), "Robot state: %s, Error code: %d, Ready: %s", 
+                       getXarmStateName(current_xarm_state).c_str(), 
+                       xarm_error_code, 
+                       isRobotReady() ? "true" : "false");
+            RCLCPP_INFO(this->get_logger(), "Use recovery service: 'ros2 service call /xarm7_state_machine/recover std_srvs/srv/Trigger'");
         } else {
             RCLCPP_WARN(this->get_logger(), "Received command while in %s state, ignoring", getStateName(current_state).c_str());
         }
@@ -439,6 +461,10 @@ namespace simple_state_machine
         if (stop_command){
             RCLCPP_ERROR(this->get_logger(), "MODE: %s -- XARM7-STATE: %s: RECEIVED STOP COMMAND!!!", 
                         getXarmModeName(current_xarm_mode).c_str(), getStateName(current_state).c_str());
+            
+            // Set error type to hardware error since stop command indicates a safety concern
+            setErrorType(ErrorType::HARDWARE_ERROR);
+            
             current_state = ERROR;
             current_command = (uint8_t)STATES::ERROR;
 
@@ -457,6 +483,7 @@ namespace simple_state_machine
         (void)request; // Suppress unused parameter warning
         
         RCLCPP_INFO(this->get_logger(), "Manual recovery service called");
+        RCLCPP_INFO(this->get_logger(), "Current error type: %s", getErrorTypeName(current_error_type).c_str());
         
         if (current_state != ERROR) {
             response->success = false;
@@ -473,32 +500,121 @@ namespace simple_state_machine
         gripper_state = "FREE";
         current_command = 0;
         
-        // Check robot state
-        if (hasRobotError()) {
-            response->success = false;
-            response->message = "Robot still has hardware error (code: " + std::to_string(xarm_error_code) + 
-                              "). Fix hardware issue first, then retry recovery.";
-            RCLCPP_ERROR(this->get_logger(), "Manual recovery failed - robot still has error: %d", xarm_error_code);
-            return;
+        RCLCPP_INFO(this->get_logger(), "Starting comprehensive recovery procedure...");
+        
+        // Step 1: Clear robot errors (if any)
+        bool error_cleared = true; // Assume success unless we need to clear errors
+        if (xarm_error_code != 0) {
+            RCLCPP_INFO(this->get_logger(), "Attempting to clear robot error (code: %d)", xarm_error_code);
+            
+            auto request_clean = std::make_shared<xarm_msgs::srv::Call::Request>();
+            
+            // Use wait_for_service to ensure service is available
+            if (!clean_error_client_->wait_for_service(std::chrono::seconds(2))) {
+                RCLCPP_ERROR(this->get_logger(), "Clean error service not available");
+                error_cleared = false;
+            } else {
+                auto future_clean = clean_error_client_->async_send_request(request_clean);
+                
+                // Wait for the future to complete with timeout
+                auto status = future_clean.wait_for(std::chrono::seconds(5));
+                if (status == std::future_status::ready) {
+                    auto result_clean = future_clean.get();
+                    if (result_clean->ret == 0) {
+                        RCLCPP_INFO(this->get_logger(), "Error clear command sent successfully");
+                        error_cleared = true;
+                    } else {
+                        RCLCPP_ERROR(this->get_logger(), "Error clear command failed: %s", result_clean->message.c_str());
+                        error_cleared = false;
+                    }
+                } else {
+                    RCLCPP_ERROR(this->get_logger(), "Timeout waiting for clean_error service");
+                    error_cleared = false;
+                }
+            }
         }
         
-        if (!isRobotReady()) {
-            response->success = false;
-            response->message = "Robot not ready (state: " + getXarmStateName(current_xarm_state) + 
-                              "). Wait for robot to be in SLEEPING state, then retry recovery.";
-            RCLCPP_WARN(this->get_logger(), "Manual recovery failed - robot not ready: %s", 
-                       getXarmStateName(current_xarm_state).c_str());
-            return;
+        // Step 2: Set robot mode to POSITION (0)
+        bool mode_set = false;
+        RCLCPP_INFO(this->get_logger(), "Setting robot mode to POSITION (0)");
+        
+        if (!set_mode_client_->wait_for_service(std::chrono::seconds(2))) {
+            RCLCPP_ERROR(this->get_logger(), "Set mode service not available");
+        } else {
+            auto request_mode = std::make_shared<xarm_msgs::srv::SetInt16::Request>();
+            request_mode->data = 0; // POSITION mode
+            auto future_mode = set_mode_client_->async_send_request(request_mode);
+            
+            auto status = future_mode.wait_for(std::chrono::seconds(5));
+            if (status == std::future_status::ready) {
+                auto result_mode = future_mode.get();
+                if (result_mode->ret == 0) {
+                    RCLCPP_INFO(this->get_logger(), "Robot mode set to POSITION successfully");
+                    mode_set = true;
+                } else {
+                    RCLCPP_ERROR(this->get_logger(), "Set mode command failed: %s", result_mode->message.c_str());
+                }
+            } else {
+                RCLCPP_ERROR(this->get_logger(), "Timeout waiting for set_mode service");
+            }
         }
         
-        // Force recovery to IDLE state
-        previous_state = ERROR;
-        current_state = IDLE;
-        enterState(IDLE);
+        // Step 3: Set robot state to READY (0)
+        bool state_set = false;
+        RCLCPP_INFO(this->get_logger(), "Setting robot state to READY (0)");
         
-        response->success = true;
-        response->message = "Recovery successful - robot returned to IDLE state";
-        RCLCPP_INFO(this->get_logger(), "Manual recovery successful - robot returned to IDLE state");
+        if (!set_state_client_->wait_for_service(std::chrono::seconds(2))) {
+            RCLCPP_ERROR(this->get_logger(), "Set state service not available");
+        } else {
+            auto request_state = std::make_shared<xarm_msgs::srv::SetInt16::Request>();
+            request_state->data = 0; // READY state
+            auto future_state = set_state_client_->async_send_request(request_state);
+            
+            auto status = future_state.wait_for(std::chrono::seconds(5));
+            if (status == std::future_status::ready) {
+                auto result_state = future_state.get();
+                if (result_state->ret == 0) {
+                    RCLCPP_INFO(this->get_logger(), "Robot state set to READY successfully");
+                    state_set = true;
+                } else {
+                    RCLCPP_ERROR(this->get_logger(), "Set state command failed: %s", result_state->message.c_str());
+                }
+            } else {
+                RCLCPP_ERROR(this->get_logger(), "Timeout waiting for set_state service");
+            }
+        }
+        
+        // Step 4: Wait a moment for robot to stabilize
+        RCLCPP_INFO(this->get_logger(), "Waiting for robot to stabilize...");
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        
+        // Step 5: Verify recovery success
+        bool recovery_successful = error_cleared && mode_set && state_set;
+        
+        if (recovery_successful) {
+            // Clear error type and reset state
+            setErrorType(ErrorType::NONE);
+            
+            // Force recovery to IDLE state
+            previous_state = ERROR;
+            current_state = IDLE;
+            enterState(IDLE);
+            
+            response->success = true;
+            response->message = "Recovery successful - robot returned to IDLE state. " +
+                              std::string("Error cleared: ") + (error_cleared ? "YES" : "NO") +
+                              ", Mode set: " + (mode_set ? "YES" : "NO") +
+                              ", State set: " + (state_set ? "YES" : "NO");
+            RCLCPP_INFO(this->get_logger(), "Manual recovery successful - robot returned to IDLE state");
+        } else {
+            response->success = false;
+            response->message = "Recovery partially failed. " +
+                              std::string("Error cleared: ") + (error_cleared ? "YES" : "NO") +
+                              ", Mode set: " + (mode_set ? "YES" : "NO") +
+                              ", State set: " + (state_set ? "YES" : "NO") +
+                              ". Please check robot status and retry.";
+            RCLCPP_ERROR(this->get_logger(), "Manual recovery failed - some operations unsuccessful");
+        }
     }
 
     void PickAndPlaceStateMachine::stateTransitionLogic()
@@ -551,25 +667,11 @@ namespace simple_state_machine
 
     void PickAndPlaceStateMachine::handleError()
     {
-        static auto last_error_time = std::chrono::steady_clock::now();
-        static int error_recovery_attempts = 0;
-        
-        auto current_time = std::chrono::steady_clock::now();
-        auto time_since_last_error = std::chrono::duration_cast<std::chrono::seconds>(current_time - last_error_time);
-        
-        // Reset attempt counter if enough time has passed since last error
-        if (time_since_last_error.count() > 10) {
-            error_recovery_attempts = 0;
-        }
-        
-        last_error_time = current_time;
-        error_recovery_attempts++;
-        
-        RCLCPP_ERROR(this->get_logger(), "Error encountered in state %s - Robot state: %s, Error code: %d (Attempt %d/3)",
+        RCLCPP_ERROR(this->get_logger(), "Error encountered in state %s - Robot state: %s, Error code: %d, Error type: %s",
                      getStateName(previous_state).c_str(),
                      getXarmStateName(current_xarm_state).c_str(),
                      xarm_error_code,
-                     error_recovery_attempts);
+                     getErrorTypeName(current_error_type).c_str());
 
         // Cancel any ongoing operations
         cancelAllOperations();
@@ -578,38 +680,86 @@ namespace simple_state_machine
         // Reset internal state variables
         gripper_state = "FREE";
         
-        // Try recovery based on number of attempts
-        if (error_recovery_attempts <= 3) {
-            RCLCPP_INFO(this->get_logger(), "Attempting error recovery (attempt %d/3)", error_recovery_attempts);
-            
-            // Try to set robot back to safe mode
-            xarm_msgs::msg::RobotMode mode_msg;
-            mode_msg.data = 0; // POSITION mode
-            mode_publisher->publish(mode_msg);
-            
-            // Wait for robot state to potentially recover
-            rclcpp::sleep_for(std::chrono::milliseconds(1000));
-            
-            // Check if robot has recovered
-            if (!hasRobotError() && isRobotReady()) {
-                RCLCPP_INFO(this->get_logger(), "Robot state recovered, transitioning to IDLE");
-                error_recovery_attempts = 0; // Reset counter on successful recovery
-                previous_state = ERROR;
-                current_state = IDLE;
-                current_command = 0;
-                enterState(IDLE);
-                return;
-            } else {
-                RCLCPP_WARN(this->get_logger(), "Robot still has error after recovery attempt %d", error_recovery_attempts);
-            }
-        } else {
-            RCLCPP_ERROR(this->get_logger(), "Maximum recovery attempts reached. Manual intervention required.");
-            RCLCPP_ERROR(this->get_logger(), "To recover: Fix robot error, then send any valid command to resume operation");
+        // Handle different error types differently
+        if (current_error_type == ErrorType::MOVEIT_PLANNING)
+        {
+            handleMoveitError();
         }
+        else if (current_error_type == ErrorType::HARDWARE_ERROR)
+        {
+            handleHardwareError();
+        }
+        else
+        {
+            RCLCPP_WARN(this->get_logger(), "Unknown error type - defaulting to hardware error handling");
+            handleHardwareError();
+        }
+    }
+
+    // ===== ERROR HANDLING FUNCTIONS =====
+    // 
+    // This state machine implements differentiated error handling:
+    // 1. MOVEIT_PLANNING errors: Allow automatic recovery to IDLE state for task replanning
+    // 2. HARDWARE_ERROR errors: Require manual recovery via service call or mode switcher
+    // 
+    // Integration with mode switcher:
+    // - Mode switcher can switch to MANUAL mode from ERROR state for manual recovery
+    // - After manual resolution, mode switcher can switch back to MOVEIT mode
+    // - Recovery service provides programmatic hardware error recovery
+    //
+    
+    void PickAndPlaceStateMachine::setErrorType(ErrorType error_type)
+    {
+        current_error_type = error_type;
+        RCLCPP_DEBUG(this->get_logger(), "Error type set to: %s", getErrorTypeName(error_type).c_str());
+    }
+
+    void PickAndPlaceStateMachine::handleMoveitError()
+    {
+        RCLCPP_WARN(this->get_logger(), "=== MOVEIT PLANNING ERROR DETECTED ===");
+        RCLCPP_WARN(this->get_logger(), "This error allows automatic recovery with task replanning");
+        RCLCPP_WARN(this->get_logger(), "State machine will automatically transition back to IDLE for retry");
+        RCLCPP_WARN(this->get_logger(), "You can send a new command or the same command will be retried");
         
-        // Stay in error state - recovery only happens when:
-        // 1. Robot error clears AND robot becomes ready
-        // 2. New command is received (will be processed if robot is ready)
+        // Clear error type for next operation
+        current_error_type = ErrorType::NONE;
+        
+        // Allow automatic transition back to IDLE after a brief delay
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        
+        // Reset command to allow new commands
+        current_command = 0;
+        
+        // Automatically transition back to IDLE for task replanning
+        RCLCPP_INFO(this->get_logger(), "Automatically recovering from MoveIt2 error - transitioning to IDLE");
+        enterState(IDLE);
+    }
+
+    void PickAndPlaceStateMachine::handleHardwareError()
+    {
+        RCLCPP_ERROR(this->get_logger(), "=== HARDWARE ERROR DETECTED ===");
+        RCLCPP_ERROR(this->get_logger(), "This error requires manual intervention and recovery");
+        RCLCPP_ERROR(this->get_logger(), "Hardware error code: %d", xarm_error_code);
+        RCLCPP_ERROR(this->get_logger(), "Consider switching to MANUAL mode via mode switcher for manual recovery");
+        RCLCPP_ERROR(this->get_logger(), "Or use recovery service after resolving hardware issues:");
+        RCLCPP_ERROR(this->get_logger(), "ros2 service call /xarm7_state_machine/recover std_srvs/srv/Trigger");
+        
+        // Stay in error state - recovery only happens through manual intervention
+        // Do not automatically transition - wait for manual recovery
+    }
+
+    std::string PickAndPlaceStateMachine::getErrorTypeName(ErrorType error_type)
+    {
+        switch (error_type) {
+            case ErrorType::NONE:
+                return "NONE";
+            case ErrorType::MOVEIT_PLANNING:
+                return "MOVEIT_PLANNING";
+            case ErrorType::HARDWARE_ERROR:
+                return "HARDWARE_ERROR";
+            default:
+                return "UNKNOWN";
+        }
     }
 
     // ===== NEW SEQUENCE PLANNING AND EXECUTION FUNCTIONS =====
@@ -893,6 +1043,8 @@ namespace simple_state_machine
             advanceSequence();
         } else {
             RCLCPP_ERROR(this->get_logger(), "Movement failed, transitioning to ERROR");
+            // Set error type to MoveIt planning failure (allows automatic recovery)
+            setErrorType(ErrorType::MOVEIT_PLANNING);
             resetSequence();
             enterState(ERROR);
         }
@@ -906,6 +1058,8 @@ namespace simple_state_machine
             advanceSequence();
         } else {
             RCLCPP_ERROR(this->get_logger(), "Picking failed, transitioning to ERROR");
+            // Set error type to MoveIt planning failure (allows automatic recovery)
+            setErrorType(ErrorType::MOVEIT_PLANNING);
             resetSequence(); 
             enterState(ERROR);
         }
@@ -919,6 +1073,8 @@ namespace simple_state_machine
             advanceSequence();
         } else {
             RCLCPP_ERROR(this->get_logger(), "Placing failed, transitioning to ERROR");
+            // Set error type to MoveIt planning failure (allows automatic recovery)
+            setErrorType(ErrorType::MOVEIT_PLANNING);
             resetSequence();
             enterState(ERROR);
         }
@@ -939,7 +1095,9 @@ namespace simple_state_machine
         RCLCPP_INFO(this->get_logger(), "Robot state check passed, calling planToTargetPose()");
         bool success = xarm7_object->planToTargetPose(target_pose, false);
         if (!success) {
-            RCLCPP_ERROR(this->get_logger(), "Movement planning failed");
+            RCLCPP_ERROR(this->get_logger(), "MoveIt2 movement planning failed - this is a planning error");
+            // Note: Don't set error type here since this function just returns false
+            // The caller (executeMovingState) will set the appropriate error type
             return false;
         }
 

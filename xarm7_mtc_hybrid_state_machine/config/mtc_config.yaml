@@ -1,0 +1,100 @@
+# MTC Task Configuration
+# Copyright 2025 Virtual Mechatronics Labs DeKUT All Rights Reserved.
+
+# Task execution parameters
+task_execution:
+  max_planning_attempts: 5
+  planning_timeout: 10.0
+  execution_timeout: 30.0
+  interpolation_factor: 0.1
+
+# Robot group configuration
+robot_groups:
+  arm_group: "xarm7"
+  gripper_group: "xarm_gripper"
+  
+# Planning configuration
+planning:
+  planner: "RRTConnectkConfigDefault"
+  planning_pipeline: "move_group"
+  workspace_bounds:
+    min_x: -0.5
+    max_x: 0.8
+    min_y: -0.6
+    max_y: 0.6
+    min_z: 0.0
+    max_z: 1.0
+
+# MTC stage velocities and accelerations
+motion_limits:
+  max_velocity_scaling_factor: 0.3
+  max_acceleration_scaling_factor: 0.3
+  cartesian_speed: 0.1  # m/s
+  joint_speed: 0.5      # rad/s
+
+# Grasp parameters
+grasp_config:
+  approach_distance: 0.1    # meters
+  retreat_distance: 0.1     # meters
+  grasp_frame: "link_eef"
+  gripper_open_position: 0.85
+  gripper_close_position: 0.0
+  grasp_pose_offset:
+    x: 0.0
+    y: 0.0
+    z: 0.0
+
+# Task-specific configurations
+tasks:
+  spindle_2:
+    object_name: "spindle_2"
+    mesh_file: "package://moveit_nodes_pkg/gear_box/SPINDLE_2.stl"
+    pick_pose:
+      position: [0.4, 0.2, 0.15]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+    place_pose:
+      position: [0.4, -0.2, 0.15]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+    
+  pinion_gear:
+    object_name: "pinion_gear"
+    mesh_file: "package://moveit_nodes_pkg/gear_box/PINION.stl"
+    pick_pose:
+      position: [0.3, 0.3, 0.12]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+    place_pose:
+      position: [0.3, -0.3, 0.12]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+      
+  idler_gear:
+    object_name: "idler_gear"
+    mesh_file: "package://moveit_nodes_pkg/gear_box/IDLER_GEAR.stl"
+    pick_pose:
+      position: [0.5, 0.1, 0.13]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+    place_pose:
+      position: [0.5, -0.1, 0.13]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+      
+  cover_plate:
+    object_name: "cover_plate"
+    mesh_file: "package://moveit_nodes_pkg/gear_box/COVER_PLATE.stl"
+    pick_pose:
+      position: [0.2, 0.0, 0.2]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+    place_pose:
+      position: [0.6, 0.0, 0.2]
+      orientation: [0.0, 0.0, 0.0, 1.0]
+
+# State machine configuration
+state_machine:
+  execution_rate_hz: 10
+  status_publish_rate_hz: 2
+  error_recovery_attempts: 3
+  
+# Mode switching configuration  
+mode_switching:
+  servoj_mode: 1
+  manual_mode: 6
+  mode_switch_timeout: 5.0
+  safety_check_interval: 0.5

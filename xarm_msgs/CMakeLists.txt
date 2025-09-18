@@ -112,6 +112,7 @@ set(srv_files
   ${srv_dir}/MoverService.srv
   ${srv_dir}/GripperPose.srv
   ${srv_dir}/PickAndPlaceService.srv
+  ${srv_dir}/MTCTaskRequest.srv
 
   # OLD
   ${srv_dir}/FtForceConfig.srv

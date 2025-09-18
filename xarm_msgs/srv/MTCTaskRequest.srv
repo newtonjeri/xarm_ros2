@@ -1,0 +1,33 @@
+# Unified service interface for both task requests and mode change requests
+# This allows a single service to handle different types of operations
+
+# Request types
+uint8 REQUEST_TASK = 1
+uint8 REQUEST_MODE_CHANGE = 2
+
+# Task types (when request_type = REQUEST_TASK)
+uint8 TASK_SPINDLE_2 = 1
+uint8 TASK_PINION_GEAR = 2  
+uint8 TASK_IDLER_GEAR = 3
+uint8 TASK_COVER_PLATE = 4
+
+# Mode types (when request_type = REQUEST_MODE_CHANGE)
+uint8 MODE_SERVOJ = 1
+uint8 MODE_MANUAL = 2
+
+# Request fields
+uint8 request_type        # REQUEST_TASK or REQUEST_MODE_CHANGE
+uint8 task_id            # Task identifier (when request_type = REQUEST_TASK)
+uint8 mode_id            # Mode identifier (when request_type = REQUEST_MODE_CHANGE)
+string task_name         # Human readable task name (optional)
+geometry_msgs/Pose custom_pose_1  # Custom pick pose (optional override)
+geometry_msgs/Pose custom_pose_2  # Custom place pose (optional override)
+
+---
+
+# Response fields
+bool success
+string message
+uint8 current_state      # Current state machine state
+string current_mode      # Current robot mode
+float64 execution_time   # Time taken for operation (seconds)

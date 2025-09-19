@@ -130,7 +130,8 @@ def launch_setup(context, *args, **kwargs):
     # robot moveit common launch
     # xarm_moveit_config/launch/_robot_moveit_common2.launch.py
     robot_moveit_common_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('xarm_moveit_config'), 'launch', '_robot_moveit_common2.launch.py'])),
+        # PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('xarm_moveit_config'), 'launch', '_robot_moveit_common2.launch.py'])),
+        PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('xarm_moveit_config'), 'launch', '_robot_moveit_common.launch.py'])),
         launch_arguments={
             'prefix': prefix,
             'attach_to': attach_to,

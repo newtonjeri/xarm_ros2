@@ -240,6 +240,7 @@ def launch_setup(context, *args, **kwargs):
     #     'ros.filtered_cloud_topic': 'filtered_cloud',
     # }
 
+    move_group_capabilities =  {"capabilities": "move_group/ExecuteTaskSolutionCapability"}
     # Start the actual move_group node/action server
     move_group_node = Node(
         package='moveit_ros_move_group',
@@ -254,6 +255,7 @@ def launch_setup(context, *args, **kwargs):
             planning_scene_monitor_parameters,
             # sensor_manager_parameters,
             {'use_sim_time': use_sim_time},
+            move_group_capabilities
         ],
     )
 

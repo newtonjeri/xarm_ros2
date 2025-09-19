@@ -230,7 +230,7 @@ def kill_all():
     # List of process names to kill
     process_names = [
         "ros2 run ros_tcp_endpoint default_server_endpoint",
-        "ros2 run xarm_custom_nodes mode_switcher_node",
+        "ros2 run xarm_custom_nodes mtc_mode_switcher_node",
         "ros2 launch xarm_moveit_config xarm7_moveit_realmove.launch.py",
         "ros2 launch xarm_moveit_config xarm7_moveit_gazebo.launch.py",
         "ros2 launch xarm_custom_nodes custom_nodes.launch.py",
@@ -278,7 +278,7 @@ def main():
     if choice == "real":
         commands.append(
             f"cd {workspace_folder}; source install/setup.bash; "
-            "ros2 run xarm_custom_nodes mode_switcher_node"
+            "ros2 run xarm_custom_nodes mtc_mode_switcher_node"
         )
     else:
         commands.append(

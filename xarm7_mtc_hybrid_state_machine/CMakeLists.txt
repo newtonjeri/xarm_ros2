@@ -118,6 +118,16 @@ ament_target_dependencies(
     "std_msgs"
 )
 
+# Create mtc_test executable
+add_executable(mtc_test test/mtc_test.cpp)
+ament_target_dependencies(
+  mtc_test
+    "rclcpp"
+    "moveit_task_constructor_core"
+    "moveit_task_constructor_msgs"
+    "geometry_msgs"
+)
+
 
 install(
   TARGETS
@@ -125,6 +135,7 @@ install(
     mtc_state_machine
     mtc_service_standalone
     task_command_bridge
+    mtc_test
   ARCHIVE DESTINATION lib  
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

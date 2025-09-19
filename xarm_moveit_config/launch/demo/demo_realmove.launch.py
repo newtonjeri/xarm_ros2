@@ -50,7 +50,13 @@ def launch_setup(context, *args, **kwargs):
         package='moveit_ros_move_group',
         executable='move_group',
         output='screen',
-        parameters=[moveit_config.to_dict()],
+        parameters=[
+            moveit_config.to_dict(),
+            {
+                # Add MTC execution capabilities
+                'capabilities': 'move_group/ExecuteTaskSolutionCapability',
+            }
+        ],
     )
 
     # Launch RViz
